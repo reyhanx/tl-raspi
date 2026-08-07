@@ -1,0 +1,16 @@
+[Unit]
+Description=Traffic Light Dashboard (Flask web monitoring)
+After=network.target traffic-control.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/traffic-light-system/dashboard
+ExecStart=/usr/bin/python3 /home/pi/traffic-light-system/dashboard/app.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

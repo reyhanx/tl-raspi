@@ -1,0 +1,16 @@
+[Unit]
+Description=Traffic Light Control System (deteksi kendaraan + kontrol lampu)
+After=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/traffic-light-system
+ExecStart=/usr/bin/python3 /home/pi/traffic-light-system/main.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Monitor — Pertigaan Sampang, Pati</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14171a;
+    --panel: #1d2226;
+    --panel-border: #2a3036;
+    --text: #e7e9ea;
+    --muted: #8a9199;
+    --go: #34c76f;
+    --caution: #f2a93b;
+    --stop: #e2483c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .signal-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .signal-lamp {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: #0f1214;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+  }
+
+  .lamp-group-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+    white-space: nowrap;
+  }
+
+  .lamp {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #23282c;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .lamp.red.active { background: var(--stop); box-shadow: 0 0 22px 4px rgba(226,72,60,0.55); }
+  .lamp.yellow.active { background: var(--caution); box-shadow: 0 0 22px 4px rgba(242,169,59,0.55); }
+  .lamp.green.active { background: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
+
+  .signal-info { flex: 1; min-width: 200px; }
+
+  .state-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .state-sub { color: var(--muted); font-size: 0.9rem; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .stat-card .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .panel h2 {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--panel-border); }
+  th { color: var(--muted); font-weight: 500; }
+
+  .frame-preview img {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    display: block;
+  }
+
+  .empty { color: var(--muted); font-size: 0.85rem; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Traffic Monitor</h1>
+    <span class="eyebrow">Pertigaan Sampang · Pantura ↔ Jakenan · Raspberry Pi 3</span>
+  </header>
+
+  <div class="signal-panel">
+    <div class="signal-lamp">
+      <div class="lamp-group-label">Pantura · Arah Pati</div>
+      <div class="lamp red" id="lamp-main-a-red"></div>
+      <div class="lamp yellow" id="lamp-main-a-yellow"></div>
+      <div class="lamp green" id="lamp-main-a-green"></div>
+    </div>
+    <div class="signal-lamp">
+      <div class="lamp-group-label">Pantura · Arah Rembang</div>
+      <div class="lamp red" id="lamp-main-b-red"></div>
+      <div class="lamp yellow" id="lamp-main-b-yellow"></div>
+      <div class="lamp green" id="lamp-main-b-green"></div>
+    </div>
+    <div class="signal-lamp">
+      <div class="lamp-group-label">Cabang Jakenan</div>
+      <div class="lamp red" id="lamp-branch-red"></div>
+      <div class="lamp yellow" id="lamp-branch-yellow"></div>
+      <div class="lamp green" id="lamp-branch-green"></div>
+    </div>
+    <div class="signal-info">
+      <div class="state-label" id="state-label">—</div>
+      <div class="state-sub" id="state-sub">Menunggu data dari sistem...</div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="label">Kendaraan di Cabang</div>
+      <div class="value" id="stat-count">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Kepadatan Cabang</div>
+      <div class="value" id="stat-density">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Fase Saat Ini</div>
+      <div class="value" id="stat-state" style="font-size:1.3rem;">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Durasi di Fase Ini</div>
+      <div class="value" id="stat-elapsed">–</div>
+    </div>
+  </div>
+
+  <div class="panel frame-preview">
+    <h2>Preview Kamera</h2>
+    <img id="camera-frame" src="/api/frame" alt="Frame kamera terbaru" onerror="this.style.display='none'">
+  </div>
+
+  <div class="panel">
+    <h2>Histori Siklus</h2>
+    <table>
+      <thead>
+        <tr><th>Waktu</th><th>Kendaraan</th><th>Kepadatan</th><th>Fase</th><th>Durasi di Fase</th></tr>
+      </thead>
+      <tbody id="log-body">
+        <tr><td colspan="5" class="empty">Belum ada data.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let cfg = {};
+
+const STATE_LABELS = {
+  'MAIN_GREEN': 'PANTURA HIJAU (default)',
+  'BRANCH_GREEN': 'JAKENAN HIJAU (ada demand)',
+  'TRANSITIONING': 'Transisi fase...',
+};
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    cfg = await res.json();
+  } catch (e) { /* diamkan, pakai default */ }
+}
+
+function setLamps(state) {
+  const groups = ['main-a', 'main-b', 'branch'];
+  groups.forEach(g => {
+    document.getElementById(`lamp-${g}-red`).classList.remove('active');
+    document.getElementById(`lamp-${g}-yellow`).classList.remove('active');
+    document.getElementById(`lamp-${g}-green`).classList.remove('active');
+  });
+
+  if (state === 'MAIN_GREEN') {
+    document.getElementById('lamp-main-a-green').classList.add('active');
+    document.getElementById('lamp-main-b-green').classList.add('active');
+    document.getElementById('lamp-branch-red').classList.add('active');
+  } else if (state === 'BRANCH_GREEN') {
+    document.getElementById('lamp-branch-green').classList.add('active');
+    document.getElementById('lamp-main-a-red').classList.add('active');
+    document.getElementById('lamp-main-b-red').classList.add('active');
+  } else {
+    document.getElementById('lamp-main-a-red').classList.add('active');
+    document.getElementById('lamp-main-b-red').classList.add('active');
+    document.getElementById('lamp-branch-red').classList.add('active');
+  }
+}
+
+async function refreshLatest() {
+  try {
+    const res = await fetch('/api/latest');
+    const data = await res.json();
+    if (!data || !data.timestamp) return;
+
+    document.getElementById('stat-count').textContent = data.vehicle_count;
+    document.getElementById('stat-density').textContent = (data.density * 100).toFixed(0) + '%';
+    document.getElementById('stat-state').textContent = STATE_LABELS[data.state] || data.state;
+    document.getElementById('stat-elapsed').textContent = data.phase_elapsed + 's';
+
+    setLamps(data.state);
+
+    document.getElementById('state-label').textContent = STATE_LABELS[data.state] || data.state;
+    if (data.state === 'MAIN_GREEN') {
+      document.getElementById('state-sub').textContent =
+        `Jalur Pantura hijau sudah ${data.phase_elapsed}s ・ Cabang: ${data.vehicle_count} kendaraan terdeteksi`;
+    } else if (data.state === 'BRANCH_GREEN') {
+      document.getElementById('state-sub').textContent =
+        `Jalur cabang hijau sudah ${data.phase_elapsed}s (maks ${cfg.max_green_branch}s) ・ ${data.vehicle_count} kendaraan`;
+    } else {
+      document.getElementById('state-sub').textContent = 'Sedang berganti fase (kuning/all-red clearance)...';
+    }
+  } catch (e) { /* diamkan, coba lagi di refresh berikutnya */ }
+}
+
+async function refreshLogs() {
+  try {
+    const res = await fetch('/api/logs');
+    const logs = await res.json();
+    const body = document.getElementById('log-body');
+    if (!logs.length) return;
+    body.innerHTML = logs.map(row => `
+      <tr>
+        <td>${new Date(row.timestamp).toLocaleTimeString('id-ID')}</td>
+        <td>${row.vehicle_count}</td>
+        <td>${(row.density * 100).toFixed(0)}%</td>
+        <td>${STATE_LABELS[row.state] || row.state}</td>
+        <td>${row.phase_elapsed}s</td>
+      </tr>`).join('');
+  } catch (e) { /* diamkan */ }
+}
+
+function refreshFrame() {
+  const img = document.getElementById('camera-frame');
+  img.src = '/api/frame?t=' + Date.now();
+  img.style.display = 'block';
+}
+
+(async function init() {
+  await loadConfig();
+  refreshLatest();
+  refreshLogs();
+})();
+setInterval(refreshLatest, 2000);
+setInterval(refreshLogs, 5000);
+setInterval(refreshFrame, 2000);
+</script>
+</body>
+</html>
