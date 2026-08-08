@@ -118,22 +118,14 @@ class VehicleDetector:
 
 
 if __name__ == "__main__":
-    # CATATAN: mode headless (TANPA cv2.imshow). Kalau kamu jalanin ini
-    # lewat Raspberry Pi Connect / remote screen sharing, cv2.imshow()
-    # bikin video di-render 2x (kamera -> window lokal -> di-stream
-    # ulang lewat remote desktop ke layar kamu) -- itu yang bikin
-    # patah-patah parah, BUKAN performa deteksinya. main.py (produksi)
-    # juga headless, jadi masalah ini gak akan muncul di sistem asli.
-    #
-    # Tes ini cuma print FPS + jumlah kendaraan ke terminal, dan nyimpen
-    # 1 frame contoh ke file tiap beberapa detik biar bisa dicek visual
-    # (download filenya lewat SFTP/file manager, bukan lewat GUI).
+    # CATATAN: versi ini pakai cv2.imshow (ada tampilan window).
+    # Kalau kamu akses Pi lewat Raspberry Pi Connect/remote screen
+    # sharing, video bisa kerasa patah-patah karena di-render 2x
+    # (kamera -> window lokal -> di-stream ulang lewat remote desktop).
+    # Itu bukan masalah performa deteksinya -- FPS asli tetap ditampilkan
+    # di pojok kiri atas layar buat perbandingan.
 
     cap = cv2.VideoCapture(0)
-
-    # Set resolusi capture dari AWAL (bukan resize belakangan) --
-    # capture native resolution tinggi lalu di-resize itu buang-buang
-    # CPU buat decode+convert frame besar yang gak kepake.
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 
@@ -143,41 +135,35 @@ if __name__ == "__main__":
         logger.error("Kamera tidak terdeteksi. Cek koneksi kamera.")
         exit(1)
 
-    logger.info("Tes headless berjalan 20 detik. Tekan Ctrl+C untuk berhenti lebih awal.")
+    logger.info("Tekan 'q' di window video untuk keluar.")
 
-    frame_count = 0
-    start_time = time.time()
-    last_save = 0
-    test_duration = 20  # detik
+    prev_time = time.time()
+    fps = 0.0
 
-    try:
-        while time.time() - start_time < test_duration:
-            ret, frame = cap.read()
-            if not ret:
-                continue
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
 
-            result = detector.detect(frame)
-            if not result["ok"]:
-                continue
+        result = detector.detect(frame)
+        if not result["ok"]:
+            continue
 
-            frame_count += 1
-            now = time.time()
+        now = time.time()
+        instant_fps = 1.0 / (now - prev_time) if now > prev_time else 0.0
+        fps = fps * 0.9 + instant_fps * 0.1  # smoothing biar gak lompat-lompat
+        prev_time = now
 
-            # Simpan 1 contoh frame tiap 3 detik buat dicek visual nanti
-            if now - last_save >= 3:
-                preview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "test_preview.jpg")
-                os.makedirs(os.path.dirname(preview_path), exist_ok=True)
-                cv2.imwrite(preview_path, result["frame"])
-                last_save = now
-                logger.info(
-                    f"Kendaraan: {result['count']} | Kepadatan: {result['density']} "
-                    f"| (contoh frame disimpan ke data/test_preview.jpg)"
-                )
-    except KeyboardInterrupt:
-        pass
-    finally:
-        elapsed = time.time() - start_time
-        fps = frame_count / elapsed if elapsed > 0 else 0
-        logger.info(f"Selesai. {frame_count} frame diproses dalam {elapsed:.1f}s -> {fps:.1f} FPS rata-rata.")
-        cap.release()
+        display_frame = result["frame"]
+        cv2.putText(
+            display_frame, f"FPS: {fps:.1f}", (10, display_frame.shape[0] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2,
+        )
+
+        cv2.imshow("Deteksi Kendaraan", display_frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
