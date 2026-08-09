@@ -180,61 +180,67 @@
 
   <div class="signal-panel">
     <div class="signal-lamp">
-      <div class="lamp-group-label">Pantura · Arah Pati</div>
+      <div class="lamp-group-label">Jalan Besar · ke Pati</div>
       <div class="lamp red" id="lamp-main-a-red"></div>
       <div class="lamp yellow" id="lamp-main-a-yellow"></div>
       <div class="lamp green" id="lamp-main-a-green"></div>
     </div>
     <div class="signal-lamp">
-      <div class="lamp-group-label">Pantura · Arah Rembang</div>
+      <div class="lamp-group-label">Jalan Besar · ke Juwana</div>
       <div class="lamp red" id="lamp-main-b-red"></div>
       <div class="lamp yellow" id="lamp-main-b-yellow"></div>
       <div class="lamp green" id="lamp-main-b-green"></div>
     </div>
     <div class="signal-lamp">
-      <div class="lamp-group-label">Cabang Jakenan</div>
+      <div class="lamp-group-label">Panah Belok ke Jakenan<br>(buat yg dari Pati)</div>
+      <div class="lamp red" id="lamp-arrow-red"></div>
+      <div class="lamp yellow" id="lamp-arrow-yellow"></div>
+      <div class="lamp green" id="lamp-arrow-green"></div>
+    </div>
+    <div class="signal-lamp">
+      <div class="lamp-group-label">Jalan Kecil · Jakenan</div>
       <div class="lamp red" id="lamp-branch-red"></div>
       <div class="lamp yellow" id="lamp-branch-yellow"></div>
       <div class="lamp green" id="lamp-branch-green"></div>
     </div>
     <div class="signal-info">
       <div class="state-label" id="state-label">—</div>
-      <div class="state-sub" id="state-sub">Menunggu data dari sistem...</div>
+      <div class="state-sub" id="state-sub">Nunggu data masuk dari alat...</div>
     </div>
   </div>
 
   <div class="stat-grid">
     <div class="stat-card">
-      <div class="label">Kendaraan di Cabang</div>
+      <div class="label">Ada Berapa Motor/Mobil di Jakenan</div>
       <div class="value" id="stat-count">–</div>
     </div>
     <div class="stat-card">
-      <div class="label">Kepadatan Cabang</div>
+      <div class="label">Seberapa Rame Jakenan</div>
       <div class="value" id="stat-density">–</div>
     </div>
     <div class="stat-card">
-      <div class="label">Fase Saat Ini</div>
+      <div class="label">Lampu Mana yang Lagi Nyala</div>
       <div class="value" id="stat-state" style="font-size:1.3rem;">–</div>
     </div>
     <div class="stat-card">
-      <div class="label">Durasi di Fase Ini</div>
+      <div class="label">Udah Berapa Lama</div>
       <div class="value" id="stat-elapsed">–</div>
     </div>
   </div>
 
   <div class="panel frame-preview">
-    <h2>Preview Kamera</h2>
+    <h2>Gambar dari Kamera</h2>
     <img id="camera-frame" src="/api/frame" alt="Frame kamera terbaru" onerror="this.style.display='none'">
   </div>
 
   <div class="panel">
-    <h2>Histori Siklus</h2>
+    <h2>Catatan Kejadian Sebelumnya</h2>
     <table>
       <thead>
-        <tr><th>Waktu</th><th>Kendaraan</th><th>Kepadatan</th><th>Fase</th><th>Durasi di Fase</th></tr>
+        <tr><th>Jam</th><th>Motor/Mobil</th><th>Rame?</th><th>Lampu</th><th>Lama</th></tr>
       </thead>
       <tbody id="log-body">
-        <tr><td colspan="5" class="empty">Belum ada data.</td></tr>
+        <tr><td colspan="5" class="empty">Belum ada catatan.</td></tr>
       </tbody>
     </table>
   </div>
@@ -244,9 +250,9 @@
 let cfg = {};
 
 const STATE_LABELS = {
-  'MAIN_GREEN': 'PANTURA HIJAU (default)',
-  'BRANCH_GREEN': 'JAKENAN HIJAU (ada demand)',
-  'TRANSITIONING': 'Transisi fase...',
+  'MAIN_GREEN': 'Jalan Besar Lagi Hijau',
+  'BRANCH_GREEN': 'Jalan Jakenan Lagi Hijau',
+  'TRANSITIONING': 'Lagi Ganti Lampu...',
 };
 
 async function loadConfig() {
@@ -257,25 +263,29 @@ async function loadConfig() {
 }
 
 function setLamps(state) {
-  const groups = ['main-a', 'main-b', 'branch'];
+  const groups = ['main-a', 'main-b', 'branch', 'arrow'];
   groups.forEach(g => {
     document.getElementById(`lamp-${g}-red`).classList.remove('active');
     document.getElementById(`lamp-${g}-yellow`).classList.remove('active');
     document.getElementById(`lamp-${g}-green`).classList.remove('active');
   });
 
+  // Panah belok SELALU mirror persis ke Cabang -- lihat traffic_controller.py
   if (state === 'MAIN_GREEN') {
     document.getElementById('lamp-main-a-green').classList.add('active');
     document.getElementById('lamp-main-b-green').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
+    document.getElementById('lamp-arrow-red').classList.add('active');
   } else if (state === 'BRANCH_GREEN') {
     document.getElementById('lamp-branch-green').classList.add('active');
+    document.getElementById('lamp-arrow-green').classList.add('active');
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
   } else {
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
+    document.getElementById('lamp-arrow-red').classList.add('active');
   }
 }
 
@@ -295,12 +305,12 @@ async function refreshLatest() {
     document.getElementById('state-label').textContent = STATE_LABELS[data.state] || data.state;
     if (data.state === 'MAIN_GREEN') {
       document.getElementById('state-sub').textContent =
-        `Jalur Pantura hijau sudah ${data.phase_elapsed}s ・ Cabang: ${data.vehicle_count} kendaraan terdeteksi`;
+        `Udah ${data.phase_elapsed} detik hijau ・ Di Jakenan kelihatan ${data.vehicle_count} motor/mobil`;
     } else if (data.state === 'BRANCH_GREEN') {
       document.getElementById('state-sub').textContent =
-        `Jalur cabang hijau sudah ${data.phase_elapsed}s (maks ${cfg.max_green_branch}s) ・ ${data.vehicle_count} kendaraan`;
+        `Udah ${data.phase_elapsed} detik hijau (paling lama ${cfg.max_green_branch} detik) ・ ${data.vehicle_count} motor/mobil lewat`;
     } else {
-      document.getElementById('state-sub').textContent = 'Sedang berganti fase (kuning/all-red clearance)...';
+      document.getElementById('state-sub').textContent = 'Sebentar ya, lampu lagi ganti (kuning dulu, terus semua merah sebentar)...';
     }
   } catch (e) { /* diamkan, coba lagi di refresh berikutnya */ }
 }

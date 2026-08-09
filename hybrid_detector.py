@@ -74,24 +74,27 @@ class HybridVehicleDetector:
         if result["count"] > 0:
             self.last_bbox = result["bbox"]
             self.last_verified_time = 0.0
+            result["source"] = "live"  # deteksi langsung, bukan dari "ingatan"
             return result
 
         if self.verifier is None or not self.verifier.enabled or self.last_bbox is None:
+            result["source"] = "empty"
             return result
 
         now = time.time()
         if now - self.last_verified_time < self.verify_interval:
-            return self._override_present(result)
+            return self._override_present(result, source="locked_grace")
 
         crop = _crop_with_padding(resized_frame, self.last_bbox, self.crop_padding)
         present = self.verifier.verify(crop) if crop is not None else False
         self.last_verified_time = now
 
         if present:
-            return self._override_present(result)
+            return self._override_present(result, source="locked_verified")
 
         logger.info("Appearance verification: kendaraan di posisi terakhir sudah tidak ada.")
         self.last_bbox = None
+        result["source"] = "empty"
         return result
 
     @staticmethod
@@ -114,7 +117,7 @@ class HybridVehicleDetector:
         new_result["bbox"] = max(vehicle_bboxes, key=lambda b: b[2] * b[3])
         return new_result
 
-    def _override_present(self, mog2_result):
+    def _override_present(self, mog2_result, source="locked"):
         """MOG2 (setelah difilter) bilang kosong, tapi appearance
         verification (atau masih dalam grace period) bilang masih ada --
         override count/density supaya controller.update() tidak keliru
@@ -122,4 +125,5 @@ class HybridVehicleDetector:
         result = dict(mog2_result)
         result["count"] = max(result["count"], 1)
         result["density"] = max(result["density"], self.fallback_density)
+        result["source"] = source
         return result

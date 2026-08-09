@@ -2,14 +2,28 @@
 traffic_controller.py
 Kontrol lampu untuk PERTIGAAN dengan logika ACTUATED (demand-based):
 
-- Jalur UTAMA (Pantura, 2 kaki berlawanan arah) -> DEFAULT HIJAU terus.
-  Tidak pernah diinterupsi kecuali ada permintaan dari cabang.
-- Jalur CABANG (Jakenan, 1 kaki, dengan kamera) -> hanya dapat giliran
-  hijau kalau ada kendaraan terdeteksi menunggu, dikonfirmasi beberapa
-  detik dulu (anti false-trigger), dan dibatasi durasi min/max.
+- Jalur UTAMA (Pati<->Juwana, arah Timur-Barat, 2 kaki berlawanan arah)
+  -> DEFAULT HIJAU terus. Tidak pernah diinterupsi kecuali ada
+  permintaan dari cabang, ATAU sudah kelamaan hijau (lihat
+  max_green_main -- jaring pengaman supaya kendaraan yang mau belok
+  lewat panah gak nunggu tanpa batas kalau Jakenan kebetulan kosong).
+- Jalur CABANG (Jakenan, arah Selatan, 1 kaki, dengan kamera) -> hanya
+  dapat giliran hijau kalau ada kendaraan terdeteksi menunggu,
+  dikonfirmasi beberapa detik dulu (anti false-trigger), dan dibatasi
+  durasi min/max.
 - Kalau cabang kosong terus -> tetap MERAH, Utama tidak terganggu.
 - Antar fase WAJIB ada jeda ALL-RED (semua lampu merah bareng) supaya
   kendaraan terakhir sempat clear sebelum arah lain dapat hijau.
+
+PANAH BELOK (arrow_pins) -- kendaraan arah Timur (dari Pati, menuju
+Juwana) yang mau belok ke Jakenan itu MOTONG jalur kendaraan arah Barat
+(dari Juwana menuju Pati) yang berlawanan, jadi butuh diatur. Panah ini
+SELALU MIRROR PERSIS ke state Cabang -- aman karena pas Cabang hijau,
+arus Barat (lawannya) otomatis berhenti. Gak butuh sensor/logika
+terpisah sama sekali, tinggal "nebeng" fase Cabang yang sudah ada.
+Kendaraan arah Barat (dari Juwana) yang mau ke Jakenan TIDAK butuh
+lampu ini -- itu belok kiri yang gak motong siapa2, cukup rambu fisik
+"BELOK KIRI LANGSUNG" (di luar scope sistem ini).
 
 CATATAN LIBRARY GPIO:
 Pakai `gpiozero` (bukan RPi.GPIO), karena RPi.GPIO sudah tidak
@@ -55,17 +69,35 @@ STATE_TRANSITIONING = "TRANSITIONING"  # Lagi proses ganti fase (kuning/all-red)
 
 
 class ActuatedIntersectionController:
-    def __init__(self, main_pins, branch_pins,
-                 min_green_main=15,
+    def __init__(self, main_pins, branch_pins, arrow_pins=None,
+                 min_green_main=15, max_green_main=90,
                  branch_call_min_vehicles=1, branch_call_confirm_seconds=3,
                  min_green_branch=8, max_green_branch=30, gap_out_seconds=4,
                  yellow_time=3, all_red_clearance=2):
+        """
+        arrow_pins: dict {"red","yellow","green"} untuk panah belok
+        Pati->Jakenan (arah Timur). Opsional -- kalau None, fitur ini
+        dilewati sepenuhnya (sistem tetap jalan normal 2 fase seperti
+        sebelumnya, cuma tanpa panah belok).
+
+        max_green_main: JARING PENGAMAN. Kamera cuma mengintai Jakenan,
+        gak bisa tahu ada kendaraan dari Pati yang nunggu mau belok
+        (butuh panah hijau, yang cuma nyala bareng fase Cabang). Kalau
+        Jakenan kebetulan kosong terus, tanpa ini Utama bisa hijau
+        SELAMANYA dan si pembelok nunggu tanpa kepastian. Parameter ini
+        memaksa Cabang+panah dapat giliran singkat secara berkala,
+        walau Jakenan kelihatan kosong -- kalau beneran kosong, langsung
+        disudahi cepat lewat gap-out yang sudah ada.
+        """
         self._main_pin_numbers = main_pins
         self._branch_pin_numbers = branch_pins
+        self._arrow_pin_numbers = arrow_pins
         self.main_devices = _make_pins(main_pins)
         self.branch_devices = _make_pins(branch_pins)
+        self.arrow_devices = _make_pins(arrow_pins) if arrow_pins else None
 
         self.min_green_main = min_green_main
+        self.max_green_main = max_green_main
         self.branch_call_min_vehicles = branch_call_min_vehicles
         self.branch_call_confirm_seconds = branch_call_confirm_seconds
         self.min_green_branch = min_green_branch
@@ -99,6 +131,8 @@ class ActuatedIntersectionController:
     # ---------- Kontrol GPIO level rendah ----------
 
     def _apply(self, devices, red, yellow, green):
+        if devices is None:
+            return
         try:
             if ON_PI:
                 self._set_led(devices["red"], red)
@@ -107,6 +141,14 @@ class ActuatedIntersectionController:
         except Exception:
             logger.exception("Gagal set GPIO, memaksa failsafe ke merah")
             self._failsafe()
+
+    def _apply_branch_group(self, red, yellow, green):
+        """Branch dan panah belok SELALU disetel BARENG dengan nilai
+        yang SAMA PERSIS di titik manapun -- ini satu-satunya tempat
+        yang boleh menyentuh branch_devices/arrow_devices, supaya gak
+        ada resiko lupa sinkronisasi kalau nanti kode ini direvisi lagi."""
+        self._apply(self.branch_devices, red, yellow, green)
+        self._apply(self.arrow_devices, red, yellow, green)
 
     @staticmethod
     def _set_led(led, on):
@@ -117,7 +159,7 @@ class ActuatedIntersectionController:
 
     def _all_red(self):
         self._apply(self.main_devices, red=True, yellow=False, green=False)
-        self._apply(self.branch_devices, red=True, yellow=False, green=False)
+        self._apply_branch_group(red=True, yellow=False, green=False)
         if not ON_PI:
             logger.info("[SIMULASI] -> ALL RED (clearance)")
 
@@ -126,7 +168,10 @@ class ActuatedIntersectionController:
         berpotongan sama-sama hijau akibat error tak terduga."""
         try:
             if ON_PI:
-                for devices in (self.main_devices, self.branch_devices):
+                all_groups = [self.main_devices, self.branch_devices]
+                if self.arrow_devices:
+                    all_groups.append(self.arrow_devices)
+                for devices in all_groups:
                     for led in devices.values():
                         led.off()
                     devices["red"].on()
@@ -147,11 +192,11 @@ class ActuatedIntersectionController:
 
     def _go_main_green(self):
         self._apply(self.main_devices, red=False, yellow=False, green=True)
-        self._apply(self.branch_devices, red=True, yellow=False, green=False)
+        self._apply_branch_group(red=True, yellow=False, green=False)
         self.state = STATE_MAIN_GREEN
         self.main_green_since = time.time()
         self.branch_call_since = None
-        logger.info("Fase UTAMA (Pantura) hijau -- state default.")
+        logger.info("Fase UTAMA (Pati-Juwana) hijau -- state default. Panah belok ikut merah.")
 
     def elapsed_in_state(self):
         now = time.time()
@@ -171,9 +216,23 @@ class ActuatedIntersectionController:
             now = time.time()
 
             if self.state == STATE_MAIN_GREEN:
+                main_elapsed = now - self.main_green_since
                 has_demand = branch_vehicle_count >= self.branch_call_min_vehicles
 
-                if has_demand:
+                # Jaring pengaman: walau gak ada demand dari kamera Jakenan
+                # sama sekali, paksa servis Cabang+panah kalau Utama udah
+                # kelamaan hijau -- supaya kendaraan dari Pati yang mau
+                # belok (butuh panah hijau) gak nunggu tanpa batas.
+                if main_elapsed >= self.max_green_main:
+                    logger.info(
+                        f"Utama sudah hijau {main_elapsed:.0f}s (>= batas maksimum "
+                        f"{self.max_green_main}s). Servis fase CABANG+panah walau "
+                        f"Jakenan kelihatan kosong -- beri kesempatan kendaraan Pati "
+                        f"yang mau belok."
+                    )
+                    self._transition_main_to_branch()
+
+                elif has_demand:
                     if self.branch_call_since is None:
                         self.branch_call_since = now
                         logger.info(
@@ -181,7 +240,6 @@ class ActuatedIntersectionController:
                             f"({branch_vehicle_count} kendaraan), mulai konfirmasi..."
                         )
                     confirm_elapsed = now - self.branch_call_since
-                    main_elapsed = now - self.main_green_since
 
                     if (confirm_elapsed >= self.branch_call_confirm_seconds
                             and main_elapsed >= self.min_green_main):
@@ -234,16 +292,18 @@ class ActuatedIntersectionController:
             self._all_red()
             time.sleep(self.all_red_clearance)
 
-        self._apply(self.branch_devices, red=False, yellow=False, green=True)
+        # Branch DAN panah belok hijau BARENG -- panah ini aman nyala
+        # karena arus lawannya (arah Barat) udah pasti berhenti di titik ini.
+        self._apply_branch_group(red=False, yellow=False, green=True)
         self.state = STATE_BRANCH_GREEN
         self.branch_green_since = time.time()
         self.branch_last_vehicle_seen = time.time()
-        logger.info("Fase CABANG (Jakenan) hijau.")
+        logger.info("Fase CABANG (Jakenan) hijau. Panah belok Pati->Jakenan ikut hijau.")
 
     def _transition_branch_to_main(self):
         self.state = STATE_TRANSITIONING
         try:
-            self._apply(self.branch_devices, red=False, yellow=True, green=False)
+            self._apply_branch_group(red=False, yellow=True, green=False)
             time.sleep(self.yellow_time)
         finally:
             self._all_red()
@@ -259,7 +319,10 @@ class ActuatedIntersectionController:
         self._cleaned_up = True
         if ON_PI:
             try:
-                for devices in (self.main_devices, self.branch_devices):
+                all_groups = [self.main_devices, self.branch_devices]
+                if self.arrow_devices:
+                    all_groups.append(self.arrow_devices)
+                for devices in all_groups:
                     for led in devices.values():
                         led.off()
                         led.close()
@@ -269,10 +332,12 @@ class ActuatedIntersectionController:
 
 
 if __name__ == "__main__":
-    # Testing mandiri: simulasikan cabang sepi lalu tiba-tiba ada kendaraan
+    # Testing mandiri: simulasikan cabang sepi lalu tiba-tiba ada kendaraan.
+    # Perhatikan log "Panah belok" -- harus SELALU muncul bareng log Cabang.
     controller = ActuatedIntersectionController(
         main_pins={"red": 17, "yellow": 27, "green": 22},
         branch_pins={"red": 23, "yellow": 24, "green": 25},
+        arrow_pins={"red": 5, "yellow": 6, "green": 13},
         min_green_main=5,           # dipercepat khusus buat testing
         branch_call_confirm_seconds=2,
         min_green_branch=4,

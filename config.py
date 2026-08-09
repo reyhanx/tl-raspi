@@ -5,7 +5,7 @@ langsung di dalam main.py / vehicle_detection.py / traffic_controller.py,
 supaya tidak ada nilai yang tercecer dan tidak sinkron.
 
 DESAIN SIMPANG: PERTIGAAN dengan logika ACTUATED
-Studi kasus: Pertigaan Sampang, Pati (Jalan Pantura Pati-Rembang +
+Studi kasus: Pertigaan Sampang, Pati (Jalan Pati-Juwana +
 cabang ke arah Jakenan).
 
 - Jalur UTAMA (Pantura, 2 kaki berlawanan arah, lurus/tidak
@@ -29,6 +29,20 @@ PIN_MAIN_GREEN = 22
 PIN_BRANCH_RED = 23
 PIN_BRANCH_YELLOW = 24
 PIN_BRANCH_GREEN = 25
+
+# Panah belok KHUSUS untuk kendaraan arah Timur (dari Pati, menuju Juwana)
+# yang mau belok ke Jakenan -- gerakan ini MOTONG jalur kendaraan arah
+# Barat (dari Juwana menuju Pati) yang datang berlawanan, jadi butuh
+# diatur, TIDAK bisa dibiarkan bebas seperti belok kiri.
+# Ditempel di tiang yang sama arah Timur/Juwana (fisik beda posisi dari
+# tiang Cabang), tapi LOGIKANYA SELALU MIRROR PERSIS ke state Cabang --
+# aman karena pas Cabang hijau, arus Barat (lawannya) otomatis berhenti.
+# Kendaraan arah Barat (dari Juwana) yang mau belok ke Jakenan TIDAK
+# butuh lampu ini sama sekali -- itu belok kiri yang gak motong siapa2,
+# cukup rambu fisik "BELOK KIRI LANGSUNG".
+PIN_ARROW_RED = 5
+PIN_ARROW_YELLOW = 6
+PIN_ARROW_GREEN = 13
 
 # ---- Kamera (dipasang menghadap jalur CABANG) ----
 CAMERA_INDEX = 0
@@ -92,6 +106,13 @@ BRANCH_CALL_CONFIRM_SECONDS = 3  # demand harus konsisten selama sekian detik
 # ---- Durasi & pengaman fase ----
 MIN_GREEN_MAIN = 15              # Utama wajib hijau minimal segini dulu sebelum
                                    # boleh "diganggu" permintaan dari cabang
+MAX_GREEN_MAIN = 90              # JARING PENGAMAN: walau Jakenan kelihatan
+                                   # kosong terus, Utama tetap dikasih batas
+                                   # atas -- supaya kendaraan dari Pati yang
+                                   # mau belok ke Jakenan (butuh panah hijau)
+                                   # gak nunggu TANPA BATAS kalau kebetulan
+                                   # gak ada satupun kendaraan dari Jakenan
+                                   # sendiri yang bisa memicu demand.
 MIN_GREEN_BRANCH = 8             # Cabang begitu dapat giliran, hijau minimal segini
 MAX_GREEN_BRANCH = 30            # ...dan maksimal segini, supaya Utama tidak
                                    # "disandera" kelamaan kalau cabang rame terus

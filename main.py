@@ -157,7 +157,9 @@ def main():
     controller = ActuatedIntersectionController(
         main_pins={"red": config.PIN_MAIN_RED, "yellow": config.PIN_MAIN_YELLOW, "green": config.PIN_MAIN_GREEN},
         branch_pins={"red": config.PIN_BRANCH_RED, "yellow": config.PIN_BRANCH_YELLOW, "green": config.PIN_BRANCH_GREEN},
+        arrow_pins={"red": config.PIN_ARROW_RED, "yellow": config.PIN_ARROW_YELLOW, "green": config.PIN_ARROW_GREEN},
         min_green_main=config.MIN_GREEN_MAIN,
+        max_green_main=config.MAX_GREEN_MAIN,
         branch_call_min_vehicles=config.BRANCH_CALL_MIN_VEHICLES,
         branch_call_confirm_seconds=config.BRANCH_CALL_CONFIRM_SECONDS,
         min_green_branch=config.MIN_GREEN_BRANCH,
