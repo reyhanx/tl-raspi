@@ -61,11 +61,14 @@
     border: 1px solid var(--panel-border);
     border-radius: 16px;
     padding: 28px;
-    display: flex;
-    align-items: center;
-    gap: 24px;
     margin-bottom: 20px;
-    flex-wrap: wrap;
+  }
+
+  .lamp-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
   }
 
   .signal-lamp {
@@ -85,7 +88,8 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 2px;
-    white-space: nowrap;
+    min-height: 2.3em;
+    line-height: 1.15em;
   }
 
   .lamp {
@@ -100,7 +104,21 @@
   .lamp.yellow.active { background: var(--caution); box-shadow: 0 0 22px 4px rgba(242,169,59,0.55); }
   .lamp.green.active { background: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
 
-  .signal-info { flex: 1; min-width: 200px; }
+  /* Panah belok -- bentuknya beda sengaja (bukan lingkaran), biar
+     langsung kelihatan ini jenis lampu yang beda dari yang lain */
+  .lamp.arrow {
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
+    clip-path: polygon(50% 0%, 100% 55%, 72% 55%, 72% 100%, 28% 100%, 28% 55%, 0% 55%);
+    background: #23282c;
+    margin: 0 auto;
+  }
+  .lamp.arrow.arrow-red { background: var(--stop); box-shadow: 0 0 22px 4px rgba(226,72,60,0.55); }
+  .lamp.arrow.arrow-yellow { background: var(--caution); box-shadow: 0 0 22px 4px rgba(242,169,59,0.55); }
+  .lamp.arrow.arrow-green { background: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
+
+  .signal-info {}
 
   .state-label {
     font-family: 'JetBrains Mono', monospace;
@@ -179,29 +197,29 @@
   </header>
 
   <div class="signal-panel">
-    <div class="signal-lamp">
-      <div class="lamp-group-label">Jalan Besar · ke Pati</div>
-      <div class="lamp red" id="lamp-main-a-red"></div>
-      <div class="lamp yellow" id="lamp-main-a-yellow"></div>
-      <div class="lamp green" id="lamp-main-a-green"></div>
-    </div>
-    <div class="signal-lamp">
-      <div class="lamp-group-label">Jalan Besar · ke Juwana</div>
-      <div class="lamp red" id="lamp-main-b-red"></div>
-      <div class="lamp yellow" id="lamp-main-b-yellow"></div>
-      <div class="lamp green" id="lamp-main-b-green"></div>
-    </div>
-    <div class="signal-lamp">
-      <div class="lamp-group-label">Panah Belok ke Jakenan<br>(buat yg dari Pati)</div>
-      <div class="lamp red" id="lamp-arrow-red"></div>
-      <div class="lamp yellow" id="lamp-arrow-yellow"></div>
-      <div class="lamp green" id="lamp-arrow-green"></div>
-    </div>
-    <div class="signal-lamp">
-      <div class="lamp-group-label">Jalan Kecil · Jakenan</div>
-      <div class="lamp red" id="lamp-branch-red"></div>
-      <div class="lamp yellow" id="lamp-branch-yellow"></div>
-      <div class="lamp green" id="lamp-branch-green"></div>
+    <div class="lamp-groups">
+      <div class="signal-lamp">
+        <div class="lamp-group-label">Jalan Besar · ke Pati</div>
+        <div class="lamp red" id="lamp-main-a-red"></div>
+        <div class="lamp yellow" id="lamp-main-a-yellow"></div>
+        <div class="lamp green" id="lamp-main-a-green"></div>
+      </div>
+      <div class="signal-lamp">
+        <div class="lamp-group-label">Jalan Besar · ke Juwana</div>
+        <div class="lamp red" id="lamp-main-b-red"></div>
+        <div class="lamp yellow" id="lamp-main-b-yellow"></div>
+        <div class="lamp green" id="lamp-main-b-green"></div>
+      </div>
+      <div class="signal-lamp">
+        <div class="lamp-group-label">Jalan Cabang · Jakenan</div>
+        <div class="lamp red" id="lamp-branch-red"></div>
+        <div class="lamp yellow" id="lamp-branch-yellow"></div>
+        <div class="lamp green" id="lamp-branch-green"></div>
+      </div>
+      <div class="signal-lamp">
+        <div class="lamp-group-label">Panah ke Jakenan<br>(dari arah Pati)</div>
+        <div class="lamp arrow" id="lamp-arrow"></div>
+      </div>
     </div>
     <div class="signal-info">
       <div class="state-label" id="state-label">—</div>
@@ -263,29 +281,31 @@ async function loadConfig() {
 }
 
 function setLamps(state) {
-  const groups = ['main-a', 'main-b', 'branch', 'arrow'];
+  const groups = ['main-a', 'main-b', 'branch'];
   groups.forEach(g => {
     document.getElementById(`lamp-${g}-red`).classList.remove('active');
     document.getElementById(`lamp-${g}-yellow`).classList.remove('active');
     document.getElementById(`lamp-${g}-green`).classList.remove('active');
   });
+  const arrowEl = document.getElementById('lamp-arrow');
+  arrowEl.classList.remove('arrow-red', 'arrow-yellow', 'arrow-green');
 
-  // Panah belok SELALU mirror persis ke Cabang -- lihat traffic_controller.py
+  // Panah SELALU mirror persis ke Cabang -- lihat traffic_controller.py
   if (state === 'MAIN_GREEN') {
     document.getElementById('lamp-main-a-green').classList.add('active');
     document.getElementById('lamp-main-b-green').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
-    document.getElementById('lamp-arrow-red').classList.add('active');
+    arrowEl.classList.add('arrow-red');
   } else if (state === 'BRANCH_GREEN') {
     document.getElementById('lamp-branch-green').classList.add('active');
-    document.getElementById('lamp-arrow-green').classList.add('active');
+    arrowEl.classList.add('arrow-green');
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
   } else {
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
-    document.getElementById('lamp-arrow-red').classList.add('active');
+    arrowEl.classList.add('arrow-red');
   }
 }
 
