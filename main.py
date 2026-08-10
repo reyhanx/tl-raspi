@@ -38,7 +38,7 @@ logger = get_logger("main")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 DB_PATH = os.path.join(DATA_DIR, "traffic_log.db")
 FRAME_PATH = os.path.join(DATA_DIR, "latest_frame.jpg")
-FRAME_TMP_PATH = FRAME_PATH + ".tmp"
+FRAME_TMP_PATH = os.path.join(DATA_DIR, "latest_frame_tmp.jpg")
 
 
 def init_db():
