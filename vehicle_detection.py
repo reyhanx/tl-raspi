@@ -94,10 +94,12 @@ class VehicleDetector:
 
             density = min(occupied_area / frame_area, 1.0) if frame_area else 0
 
-            cv2.putText(
-                frame, f"Kendaraan: {len(all_bboxes)}", (10, 25),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
-            )
+            # CATATAN: sengaja TIDAK menggambar teks apapun di sini (misal
+            # "Kendaraan: N"). detect() cuma tanggung jawab ngasih data
+            # bersih + kotak deteksi -- teks status itu urusan script
+            # tampilan (vehicle_detection.py __main__, test_hybrid.py, dst),
+            # supaya tiap script bisa atur posisi teksnya sendiri tanpa
+            # numpuk satu sama lain kalau detect() ini dipakai bareng.
 
             return {
                 "count": len(all_bboxes),
@@ -139,6 +141,7 @@ if __name__ == "__main__":
 
     prev_time = time.time()
     fps = 0.0
+    DISPLAY_SCALE = 2.5  # perbesar cuma buat TAMPILAN, deteksi tetap di resolusi kecil (ringan)
 
     while True:
         ret, frame = cap.read()
@@ -154,13 +157,20 @@ if __name__ == "__main__":
         fps = fps * 0.9 + instant_fps * 0.1  # smoothing biar gak lompat-lompat
         prev_time = now
 
-        display_frame = result["frame"]
-        cv2.putText(
-            display_frame, f"FPS: {fps:.1f}", (10, display_frame.shape[0] - 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2,
+        # Perbesar frame DULU, baru gambar teks di atasnya -- supaya teks
+        # tetap tajam (bukan teks kecil yang di-blur gara-gara di-scale up).
+        small_frame = result["frame"]
+        display_frame = cv2.resize(
+            small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
+            interpolation=cv2.INTER_NEAREST,
         )
 
-        cv2.imshow("Deteksi Kendaraan", display_frame)
+        cv2.putText(display_frame, f"Kendaraan: {result['count']}", (14, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+        cv2.putText(display_frame, f"FPS: {fps:.1f}", (14, display_frame.shape[0] - 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+        cv2.imshow("Deteksi Kendaraan (q untuk keluar)", display_frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 

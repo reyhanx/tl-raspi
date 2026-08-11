@@ -101,6 +101,7 @@ def main():
     logger.info("Tekan 'q' di window video untuk keluar.")
     prev_time = time.time()
     fps = 0.0
+    DISPLAY_SCALE = 2.5  # perbesar cuma buat TAMPILAN, deteksi tetap di resolusi kecil (ringan)
 
     while True:
         ret, frame = cap.read()
@@ -121,21 +122,32 @@ def main():
         fps = fps * 0.9 + instant_fps * 0.1
         prev_time = now
 
-        display = result["frame"].copy() if result.get("frame") is not None else frame.copy()
+        small_frame = result["frame"] if result.get("frame") is not None else frame
+        # Perbesar frame DULU (biar teks yang digambar belakangan tetap
+        # tajam, bukan teks kecil yang di-blur gara-gara di-scale up).
+        display = cv2.resize(
+            small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
+            interpolation=cv2.INTER_NEAREST,
+        )
 
         source = result.get("source", "empty")
         if result["count"] > 0 and result.get("bbox"):
             x, y, w, h = result["bbox"]
+            # Skalakan koordinat bbox ikut upscale, biar kotaknya tetap
+            # pas nempel ke objeknya di frame yang udah diperbesar.
+            x, y, w, h = (int(v * DISPLAY_SCALE) for v in (x, y, w, h))
             color = SOURCE_COLOR.get(source, (0, 255, 0))
             label = SOURCE_LABEL.get(source, source)
             cv2.rectangle(display, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(display, label, (x, max(20, y - 8)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.putText(display, label, (x, max(20, y - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        cv2.putText(display, f"MOG2 mentah: {raw_count} | Setelah filter: {result['count']}",
-                    (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        cv2.putText(display, f"FPS: {fps:.1f}", (10, display.shape[0] - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
+        # Baris 1 (paling atas): perbandingan sebelum/sesudah filter
+        cv2.putText(display, f"MOG2 mentah: {raw_count}  |  Setelah filter: {result['count']}",
+                    (14, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        # Baris paling bawah: FPS
+        cv2.putText(display, f"FPS: {fps:.1f}", (14, display.shape[0] - 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         cv2.imshow("Tes Hybrid Detector (q untuk keluar)", display)
         if cv2.waitKey(1) & 0xFF == ord("q"):
