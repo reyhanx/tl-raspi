@@ -13,17 +13,17 @@ CARA BACA WARNA KOTAK & TEKS DI LAYAR:
 - Kotak KUNING + teks "TERKUNCI" -> MOG2 udah gak lihat gerakan lagi,
                                      tapi appearance verification masih
                                      yakin kendaraannya ada di situ
-- Gak ada kotak sama sekali     -> dianggap kosong beneran (baik dari
-                                     awal, atau setelah verifikasi bilang
-                                     "udah gak ada")
-- Angka "MOG2 mentah: X | Setelah filter: Y" di pojok atas -> kalau
-  X > Y, artinya ada blob yang dibuang classifier (kemungkinan besar
-  itu pejalan kaki/noise, bukan kendaraan)
+- Kotak ORANYE + teks "ragu, blm nyerah" -> AI sempat gagal 1x
+                                     verifikasi, tapi belum nyerah
+- Gak ada kotak sama sekali     -> dianggap kosong beneran
+
+Angka "MOG2 mentah: X | Setelah filter: Y" di panel atas -> kalau
+X > Y, artinya ada blob yang dibuang classifier (kemungkinan besar
+itu pejalan kaki/noise, bukan kendaraan).
 
 KALAU ai-edge-litert / model BELUM diinstall:
 Script ini TETAP JALAN, tapi cuma Lapis 0 (filter geometris) yang aktif
--- gak akan pernah muncul kotak kuning "TERKUNCI" karena appearance
-verification-nya nonaktif. Itu normal, bukan error.
+-- gak akan pernah muncul kotak kuning "TERKUNCI". Itu normal.
 """
 
 import cv2
@@ -127,43 +127,30 @@ def main():
         prev_time = now
 
         small_frame = result["frame"] if result.get("frame") is not None else frame
-        # Perbesar frame DULU (biar teks yang digambar belakangan tetap
-        # tajam, bukan teks kecil yang di-blur gara-gara di-scale up).
         display = cv2.resize(
             small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
             interpolation=cv2.INTER_NEAREST,
         )
         h_disp, w_disp = display.shape[:2]
 
-        # ---- Panel status atas & bawah (background gelap semi-transparan) ----
-        # Ini "reserved zone" -- gak ada elemen lain (label kotak deteksi,
-        # dll) yang boleh digambar di area ini, jadi dijamin gak akan
-        # numpuk sama teks status apapun yang terjadi di tengah frame.
         overlay = display.copy()
         cv2.rectangle(overlay, (0, 0), (w_disp, BAR_HEIGHT), (15, 15, 15), -1)
         cv2.rectangle(overlay, (0, h_disp - BAR_HEIGHT), (w_disp, h_disp), (15, 15, 15), -1)
         display = cv2.addWeighted(overlay, 0.6, display, 0.4, 0)
 
-        # ---- Kotak deteksi + label (label DIPAKSA di bawah panel atas) ----
         source = result.get("source", "empty")
         if result["count"] > 0 and result.get("bbox"):
             x, y, w, h = result["bbox"]
-            # Skalakan koordinat bbox ikut upscale, biar kotaknya tetap
-            # pas nempel ke objeknya di frame yang udah diperbesar.
             x, y, w, h = (int(v * DISPLAY_SCALE) for v in (x, y, w, h))
             color = SOURCE_COLOR.get(source, (0, 255, 0))
             label = SOURCE_LABEL.get(source, source)
             cv2.rectangle(display, (x, y), (x + w, y + h), color, 2)
-            # min BAR_HEIGHT+18 -- gak peduli seberapa mepet kotaknya ke
-            # atas, label ini gak akan pernah masuk ke panel status.
             label_y = max(BAR_HEIGHT + 18, y - 10)
             cv2.putText(display, label, (x, label_y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        # ---- Isi panel status atas: perbandingan sebelum/sesudah filter ----
         cv2.putText(display, f"MOG2 mentah: {raw_count}  |  Setelah filter: {result['count']}",
                     (14, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        # ---- Isi panel status bawah: FPS ----
         cv2.putText(display, f"FPS: {fps:.1f}", (14, h_disp - 14),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
@@ -177,3 +164,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+PYEOF
+echo "Selesai ditulis ulang"
