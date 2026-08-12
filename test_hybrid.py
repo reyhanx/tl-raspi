@@ -39,14 +39,16 @@ from logger_setup import get_logger
 logger = get_logger("test_hybrid")
 
 SOURCE_COLOR = {
-    "live": (0, 255, 0),           # hijau
-    "locked_grace": (0, 220, 255),  # kuning
-    "locked_verified": (0, 220, 255),
+    "live": (0, 255, 0),              # hijau
+    "locked_grace": (0, 220, 255),    # kuning
+    "locked_verified": (0, 220, 255), # kuning
+    "locked_uncertain": (0, 140, 255), # oranye -- lagi ragu tapi belum nyerah
 }
 SOURCE_LABEL = {
     "live": "LIVE",
     "locked_grace": "TERKUNCI (grace)",
     "locked_verified": "TERKUNCI (verified)",
+    "locked_uncertain": "TERKUNCI (ragu, blm nyerah)",
 }
 
 
@@ -96,12 +98,14 @@ def main():
         object_classifier=classifier,
         verify_interval=config.APPEARANCE_VERIFY_INTERVAL,
         crop_padding=config.APPEARANCE_CROP_PADDING,
+        release_strikes=config.APPEARANCE_RELEASE_STRIKES,
     )
 
     logger.info("Tekan 'q' di window video untuk keluar.")
     prev_time = time.time()
     fps = 0.0
-    DISPLAY_SCALE = 2.5  # perbesar cuma buat TAMPILAN, deteksi tetap di resolusi kecil (ringan)
+    DISPLAY_SCALE = 2.5   # perbesar cuma buat TAMPILAN, deteksi tetap di resolusi kecil (ringan)
+    BAR_HEIGHT = 40       # tinggi panel status atas & bawah, dalam px (setelah upscale)
 
     while True:
         ret, frame = cap.read()
@@ -129,7 +133,18 @@ def main():
             small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
             interpolation=cv2.INTER_NEAREST,
         )
+        h_disp, w_disp = display.shape[:2]
 
+        # ---- Panel status atas & bawah (background gelap semi-transparan) ----
+        # Ini "reserved zone" -- gak ada elemen lain (label kotak deteksi,
+        # dll) yang boleh digambar di area ini, jadi dijamin gak akan
+        # numpuk sama teks status apapun yang terjadi di tengah frame.
+        overlay = display.copy()
+        cv2.rectangle(overlay, (0, 0), (w_disp, BAR_HEIGHT), (15, 15, 15), -1)
+        cv2.rectangle(overlay, (0, h_disp - BAR_HEIGHT), (w_disp, h_disp), (15, 15, 15), -1)
+        display = cv2.addWeighted(overlay, 0.6, display, 0.4, 0)
+
+        # ---- Kotak deteksi + label (label DIPAKSA di bawah panel atas) ----
         source = result.get("source", "empty")
         if result["count"] > 0 and result.get("bbox"):
             x, y, w, h = result["bbox"]
@@ -139,14 +154,17 @@ def main():
             color = SOURCE_COLOR.get(source, (0, 255, 0))
             label = SOURCE_LABEL.get(source, source)
             cv2.rectangle(display, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(display, label, (x, max(20, y - 10)),
+            # min BAR_HEIGHT+18 -- gak peduli seberapa mepet kotaknya ke
+            # atas, label ini gak akan pernah masuk ke panel status.
+            label_y = max(BAR_HEIGHT + 18, y - 10)
+            cv2.putText(display, label, (x, label_y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        # Baris 1 (paling atas): perbandingan sebelum/sesudah filter
+        # ---- Isi panel status atas: perbandingan sebelum/sesudah filter ----
         cv2.putText(display, f"MOG2 mentah: {raw_count}  |  Setelah filter: {result['count']}",
-                    (14, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        # Baris paling bawah: FPS
-        cv2.putText(display, f"FPS: {fps:.1f}", (14, display.shape[0] - 16),
+                    (14, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        # ---- Isi panel status bawah: FPS ----
+        cv2.putText(display, f"FPS: {fps:.1f}", (14, h_disp - 14),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         cv2.imshow("Tes Hybrid Detector (q untuk keluar)", display)

@@ -73,6 +73,10 @@ APPEARANCE_VERIFY_INTERVAL = 2.0   # detik, seberapa sering verifikasi ulang
 APPEARANCE_CROP_PADDING = 25       # px, padding di sekitar posisi terakhir
                                      # diketahui supaya kendaraan gak kepotong
                                      # saat di-crop untuk verifikasi
+APPEARANCE_RELEASE_STRIKES = 2     # kunci baru dilepas kalau verifikasi GAGAL
+                                     # sekian kali BERTURUT-TURUT -- 1x gagal
+                                     # doang (AI ragu sesaat) TIDAK langsung
+                                     # ngebuang kunci yang masih valid
 
 # ---- Object classifier: filter pejalan kaki/non-kendaraan (opsional) ----
 # 3 lapis (geometris -> model TFLite -> memori), lihat object_classifier.py.

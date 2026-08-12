@@ -152,6 +152,7 @@ def main():
         ) if config.CLASSIFIER_ENABLED else None,
         verify_interval=config.APPEARANCE_VERIFY_INTERVAL,
         crop_padding=config.APPEARANCE_CROP_PADDING,
+        release_strikes=config.APPEARANCE_RELEASE_STRIKES,
     )
 
     controller = ActuatedIntersectionController(

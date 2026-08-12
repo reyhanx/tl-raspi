@@ -164,11 +164,20 @@ if __name__ == "__main__":
             small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
             interpolation=cv2.INTER_NEAREST,
         )
+        h_disp, w_disp = display_frame.shape[:2]
+        BAR_HEIGHT = 40
 
-        cv2.putText(display_frame, f"Kendaraan: {result['count']}", (14, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-        cv2.putText(display_frame, f"FPS: {fps:.1f}", (14, display_frame.shape[0] - 16),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        # Panel status atas & bawah (background gelap semi-transparan) --
+        # biar teks tetap kebaca jelas di atas gambar apapun di belakangnya.
+        overlay = display_frame.copy()
+        cv2.rectangle(overlay, (0, 0), (w_disp, BAR_HEIGHT), (15, 15, 15), -1)
+        cv2.rectangle(overlay, (0, h_disp - BAR_HEIGHT), (w_disp, h_disp), (15, 15, 15), -1)
+        display_frame = cv2.addWeighted(overlay, 0.6, display_frame, 0.4, 0)
+
+        cv2.putText(display_frame, f"Kendaraan: {result['count']}", (14, 26),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (60, 60, 255), 2)
+        cv2.putText(display_frame, f"FPS: {fps:.1f}", (14, h_disp - 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         cv2.imshow("Deteksi Kendaraan (q untuk keluar)", display_frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
