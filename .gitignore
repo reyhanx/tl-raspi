@@ -1,0 +1,21 @@
+# Cache Python
+__pycache__/
+*.pyc
+
+# Data runtime -- dibuat otomatis pas sistem jalan, jangan di-commit
+data/traffic_log.db
+data/traffic_log.db-*
+data/logs/*.log
+data/latest_frame.jpg
+data/latest_frame_tmp.jpg
+data/test_preview.jpg
+
+# Model AI (opsional, ukurannya lumayan besar) -- lihat models/README.md
+# buat cara download-nya. Uncomment 2 baris ini kalau gak mau file model
+# ikut kesimpen di repo Git (apalagi kalau repo-nya public):
+# models/detect.tflite
+# models/labelmap.txt
+
+# Virtual environment (kalau nanti dipakai)
+venv/
+.venv/

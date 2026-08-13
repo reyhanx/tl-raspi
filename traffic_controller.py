@@ -73,7 +73,7 @@ class ActuatedIntersectionController:
                  min_green_main=15, max_green_main=90,
                  branch_call_min_vehicles=1, branch_call_confirm_seconds=3,
                  min_green_branch=8, max_green_branch=30, gap_out_seconds=4,
-                 yellow_time=3, all_red_clearance=2):
+                 yellow_time=3, all_red_clearance=2, on_light_change=None):
         """
         arrow_pins: dict {"red","yellow","green"} untuk panah belok
         Pati->Jakenan (arah Timur). Opsional -- kalau None, fitur ini
@@ -88,6 +88,15 @@ class ActuatedIntersectionController:
         memaksa Cabang+panah dapat giliran singkat secara berkala,
         walau Jakenan kelihatan kosong -- kalau beneran kosong, langsung
         disudahi cepat lewat gap-out yang sudah ada.
+
+        on_light_change: callback opsional dipanggil SETIAP KALI warna
+        lampu beneran berubah (termasuk kuning & all-red yang cuma
+        berlangsung sebentar saat transisi). Dipakai main.py buat catat
+        status ke dashboard secara instan -- tanpa ini, kuning/all-red
+        gak akan pernah "kelihatan" di dashboard karena periodic log
+        biasa gak sempat nangkep momen yang cuma 2-3 detik itu (seluruh
+        transisi terjadi di 1 pemanggilan update() yang blocking).
+        Signature: on_light_change(detail_state: str)
         """
         self._main_pin_numbers = main_pins
         self._branch_pin_numbers = branch_pins
@@ -95,6 +104,7 @@ class ActuatedIntersectionController:
         self.main_devices = _make_pins(main_pins)
         self.branch_devices = _make_pins(branch_pins)
         self.arrow_devices = _make_pins(arrow_pins) if arrow_pins else None
+        self.on_light_change = on_light_change
 
         self.min_green_main = min_green_main
         self.max_green_main = max_green_main
@@ -109,7 +119,12 @@ class ActuatedIntersectionController:
         self._cleaned_up = False
 
         # Timer/state internal
-        self.state = None
+        self.state = None        # state KASAR: MAIN_GREEN/BRANCH_GREEN/TRANSITIONING
+                                   # -- ini yang dipakai logika update() di atas,
+                                   # JANGAN diubah maknanya, banyak logic bergantung ini.
+        self.detail_state = None  # state HALUS buat pelaporan/tampilan: termasuk
+                                   # MAIN_YELLOW, ALL_RED, BRANCH_YELLOW yang gak
+                                   # kebedain di `self.state` di atas.
         self.main_green_since = None
         self.branch_call_since = None      # kapan demand cabang mulai terdeteksi
                                              # terus-menerus (buat confirm window)
@@ -157,9 +172,22 @@ class ActuatedIntersectionController:
         else:
             led.off()
 
+    def _set_detail_state(self, detail_state):
+        """Catat state halus + lapor instan ke callback (kalau ada).
+        INI yang bikin dashboard bisa nangkep momen kuning/all-red yang
+        cuma berlangsung sebentar -- dipanggil PERSIS di titik lampu
+        beneran berubah, bukan nunggu periodic log."""
+        self.detail_state = detail_state
+        if self.on_light_change is not None:
+            try:
+                self.on_light_change(detail_state)
+            except Exception:
+                logger.exception("on_light_change callback error (non-fatal, lampu tetap jalan)")
+
     def _all_red(self):
         self._apply(self.main_devices, red=True, yellow=False, green=False)
         self._apply_branch_group(red=True, yellow=False, green=False)
+        self._set_detail_state("ALL_RED")
         if not ON_PI:
             logger.info("[SIMULASI] -> ALL RED (clearance)")
 
@@ -176,6 +204,7 @@ class ActuatedIntersectionController:
                         led.off()
                     devices["red"].on()
             self.state = STATE_TRANSITIONING
+            self._set_detail_state("ALL_RED")
         except Exception:
             logger.exception("Failsafe pun gagal — cek wiring/hardware GPIO")
 
@@ -194,6 +223,7 @@ class ActuatedIntersectionController:
         self._apply(self.main_devices, red=False, yellow=False, green=True)
         self._apply_branch_group(red=True, yellow=False, green=False)
         self.state = STATE_MAIN_GREEN
+        self._set_detail_state("MAIN_GREEN")
         self.main_green_since = time.time()
         self.branch_call_since = None
         logger.info("Fase UTAMA (Pati-Juwana) hijau -- state default. Panah belok ikut merah.")
@@ -287,6 +317,7 @@ class ActuatedIntersectionController:
         self.state = STATE_TRANSITIONING
         try:
             self._apply(self.main_devices, red=False, yellow=True, green=False)
+            self._set_detail_state("MAIN_YELLOW")
             time.sleep(self.yellow_time)
         finally:
             self._all_red()
@@ -296,6 +327,7 @@ class ActuatedIntersectionController:
         # karena arus lawannya (arah Barat) udah pasti berhenti di titik ini.
         self._apply_branch_group(red=False, yellow=False, green=True)
         self.state = STATE_BRANCH_GREEN
+        self._set_detail_state("BRANCH_GREEN")
         self.branch_green_since = time.time()
         self.branch_last_vehicle_seen = time.time()
         logger.info("Fase CABANG (Jakenan) hijau. Panah belok Pati->Jakenan ikut hijau.")
@@ -304,6 +336,7 @@ class ActuatedIntersectionController:
         self.state = STATE_TRANSITIONING
         try:
             self._apply_branch_group(red=False, yellow=True, green=False)
+            self._set_detail_state("BRANCH_YELLOW")
             time.sleep(self.yellow_time)
         finally:
             self._all_red()

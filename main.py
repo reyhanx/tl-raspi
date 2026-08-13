@@ -155,6 +155,23 @@ def main():
         release_strikes=config.APPEARANCE_RELEASE_STRIKES,
     )
 
+    # Wadah sederhana buat "data kamera terakhir yang diketahui" -- dipakai
+    # callback on_light_change() di bawah, karena callback itu dipanggil
+    # dari DALAM traffic_controller.py (bukan langsung dari loop utama),
+    # jadi butuh cara buat "intip" density/count paling baru tanpa harus
+    # oper parameter tambahan ke controller.
+    latest_reading = {"count": 0, "density": 0.0}
+
+    def on_light_change(detail_state):
+        """Dipanggil LANGSUNG oleh traffic_controller.py setiap kali warna
+        lampu beneran berubah -- termasuk kuning & all-red yang cuma
+        berlangsung 2-3 detik. Tanpa ini, dashboard gak akan pernah
+        'sempat' nangkep momen kuning, karena periodic log biasa
+        (STATUS_LOG_INTERVAL) gak cukup sering buat itu, dan seluruh
+        transisi terjadi di 1 pemanggilan controller.update() yang
+        blocking (loop utama gak jalan sampai transisinya kelar)."""
+        save_log(latest_reading["count"], latest_reading["density"], detail_state, 0)
+
     controller = ActuatedIntersectionController(
         main_pins={"red": config.PIN_MAIN_RED, "yellow": config.PIN_MAIN_YELLOW, "green": config.PIN_MAIN_GREEN},
         branch_pins={"red": config.PIN_BRANCH_RED, "yellow": config.PIN_BRANCH_YELLOW, "green": config.PIN_BRANCH_GREEN},
@@ -168,6 +185,7 @@ def main():
         gap_out_seconds=config.BRANCH_GAP_OUT_SECONDS,
         yellow_time=config.YELLOW_TIME,
         all_red_clearance=config.ALL_RED_CLEARANCE,
+        on_light_change=on_light_change,
     )
 
     logger.info("Sistem berjalan (mode actuated). Tekan Ctrl+C untuk berhenti.")
@@ -209,16 +227,21 @@ def main():
                     continue
 
                 save_frame_atomic(result["frame"])
+                latest_reading["count"] = result["count"]
+                latest_reading["density"] = result["density"]
 
                 # Ini jantung sistem actuated: controller yang menentukan
                 # sendiri kapan harus ganti fase berdasarkan data ini.
+                # Kalau ini memicu transisi, on_light_change() di atas bakal
+                # kepanggil beberapa kali SELAMA update() ini masih berjalan
+                # (blocking) -- itu yang bikin kuning/all-red kecatet instan.
                 controller.update(result["density"], result["count"])
 
                 now = time.time()
                 if now - last_status_log >= config.STATUS_LOG_INTERVAL:
                     save_log(
                         result["count"], result["density"],
-                        controller.state, controller.elapsed_in_state(),
+                        controller.detail_state, controller.elapsed_in_state(),
                     )
                     last_status_log = now
 

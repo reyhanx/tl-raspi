@@ -16,6 +16,14 @@ logger = get_logger("vehicle_detection")
 
 class VehicleDetector:
     def __init__(self, min_area=800, resize_width=320, learning_rate=-1):
+        """
+        learning_rate: seberapa cepat MOG2 "melupakan" objek diam dan
+        menelannya ke background. -1 = otomatis (default OpenCV, cepat
+        melupakan). Nilai kecil positif (misal 0.001) bikin objek diam
+        butuh JAUH lebih lama sebelum mulai luntur ke background --
+        mitigasi untuk masalah "kendaraan berhenti lama hilang dari
+        deteksi" yang didiskusikan (lihat HANDOFF.md bagian 10).
+        """
         self.min_area = min_area
         self.resize_width = resize_width
         self.learning_rate = learning_rate
@@ -32,6 +40,17 @@ class VehicleDetector:
         return cv2.resize(frame, (self.resize_width, new_h))
 
     def detect(self, frame):
+        """
+        Input  : 1 frame BGR dari kamera
+        Output : dict berisi jumlah kendaraan terdeteksi, kepadatan (0-1),
+                 bbox objek TERBESAR (x, y, w, h) atau None kalau gak ada,
+                 daftar SEMUA bbox yang lolos MIN_AREA (dipakai object_classifier.py
+                 untuk filter pejalan kaki), dan frame yang sudah digambar
+                 kotak deteksi.
+        Kalau frame rusak/kosong atau proses OpenCV gagal, tidak melempar
+        exception ke pemanggil — kembalikan hasil kosong yang aman supaya
+        loop utama tetap berjalan.
+        """
         empty_result = {
             "count": 0, "density": 0.0, "bbox": None, "bboxes": [],
             "frame": None, "timestamp": time.time(), "ok": False,
@@ -75,6 +94,13 @@ class VehicleDetector:
 
             density = min(occupied_area / frame_area, 1.0) if frame_area else 0
 
+            # CATATAN: sengaja TIDAK menggambar teks apapun di sini (misal
+            # "Kendaraan: N"). detect() cuma tanggung jawab ngasih data
+            # bersih + kotak deteksi -- teks status itu urusan script
+            # tampilan (vehicle_detection.py __main__, test_hybrid.py, dst),
+            # supaya tiap script bisa atur posisi teksnya sendiri tanpa
+            # numpuk satu sama lain kalau detect() ini dipakai bareng.
+
             return {
                 "count": len(all_bboxes),
                 "density": round(density, 3),
@@ -94,6 +120,13 @@ class VehicleDetector:
 
 
 if __name__ == "__main__":
+    # CATATAN: versi ini pakai cv2.imshow (ada tampilan window).
+    # Kalau kamu akses Pi lewat Raspberry Pi Connect/remote screen
+    # sharing, video bisa kerasa patah-patah karena di-render 2x
+    # (kamera -> window lokal -> di-stream ulang lewat remote desktop).
+    # Itu bukan masalah performa deteksinya -- FPS asli tetap ditampilkan
+    # di pojok kiri atas layar buat perbandingan.
+
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
@@ -108,7 +141,7 @@ if __name__ == "__main__":
 
     prev_time = time.time()
     fps = 0.0
-    DISPLAY_SCALE = 2.5
+    DISPLAY_SCALE = 2.5  # perbesar cuma buat TAMPILAN, deteksi tetap di resolusi kecil (ringan)
 
     while True:
         ret, frame = cap.read()
@@ -121,9 +154,11 @@ if __name__ == "__main__":
 
         now = time.time()
         instant_fps = 1.0 / (now - prev_time) if now > prev_time else 0.0
-        fps = fps * 0.9 + instant_fps * 0.1
+        fps = fps * 0.9 + instant_fps * 0.1  # smoothing biar gak lompat-lompat
         prev_time = now
 
+        # Perbesar frame DULU, baru gambar teks di atasnya -- supaya teks
+        # tetap tajam (bukan teks kecil yang di-blur gara-gara di-scale up).
         small_frame = result["frame"]
         display_frame = cv2.resize(
             small_frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE,
@@ -132,6 +167,8 @@ if __name__ == "__main__":
         h_disp, w_disp = display_frame.shape[:2]
         BAR_HEIGHT = 40
 
+        # Panel status atas & bawah (background gelap semi-transparan) --
+        # biar teks tetap kebaca jelas di atas gambar apapun di belakangnya.
         overlay = display_frame.copy()
         cv2.rectangle(overlay, (0, 0), (w_disp, BAR_HEIGHT), (15, 15, 15), -1)
         cv2.rectangle(overlay, (0, h_disp - BAR_HEIGHT), (w_disp, h_disp), (15, 15, 15), -1)
@@ -148,5 +185,4 @@ if __name__ == "__main__":
 
     cap.release()
     cv2.destroyAllWindows()
-PYEOF
-echo "Selesai ditulis ulang"
+

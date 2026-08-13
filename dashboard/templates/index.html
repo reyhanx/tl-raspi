@@ -269,8 +269,11 @@ let cfg = {};
 
 const STATE_LABELS = {
   'MAIN_GREEN': 'Jalan Besar Lagi Hijau',
+  'MAIN_YELLOW': 'Jalan Besar Kuning (mau ganti)',
+  'ALL_RED': 'Semua Merah Sebentar (jaga-jaga)',
   'BRANCH_GREEN': 'Jalan Jakenan Lagi Hijau',
-  'TRANSITIONING': 'Lagi Ganti Lampu...',
+  'BRANCH_YELLOW': 'Jalan Jakenan Kuning (mau ganti)',
+  'TRANSITIONING': 'Lagi Ganti Lampu...',  // data lama, jaga-jaga
 };
 
 async function loadConfig() {
@@ -296,12 +299,23 @@ function setLamps(state) {
     document.getElementById('lamp-main-b-green').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
     arrowEl.classList.add('arrow-red');
+  } else if (state === 'MAIN_YELLOW') {
+    document.getElementById('lamp-main-a-yellow').classList.add('active');
+    document.getElementById('lamp-main-b-yellow').classList.add('active');
+    document.getElementById('lamp-branch-red').classList.add('active');
+    arrowEl.classList.add('arrow-red');
   } else if (state === 'BRANCH_GREEN') {
     document.getElementById('lamp-branch-green').classList.add('active');
     arrowEl.classList.add('arrow-green');
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
+  } else if (state === 'BRANCH_YELLOW') {
+    document.getElementById('lamp-branch-yellow').classList.add('active');
+    arrowEl.classList.add('arrow-yellow');
+    document.getElementById('lamp-main-a-red').classList.add('active');
+    document.getElementById('lamp-main-b-red').classList.add('active');
   } else {
+    // ALL_RED, TRANSITIONING (data lama), atau state gak dikenal -> aman, semua merah
     document.getElementById('lamp-main-a-red').classList.add('active');
     document.getElementById('lamp-main-b-red').classList.add('active');
     document.getElementById('lamp-branch-red').classList.add('active');
