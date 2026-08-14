@@ -494,7 +494,7 @@
 let cfg = {};
 let densityChartInst = null;
 let isFrameLoading = false; 
-let isSystemOffline = false; // Flag penanda server mati
+let isSystemOffline = false; 
 
 const STATE_LABELS = {
   'MAIN_GREEN': 'Jalur Utama: Hijau',
@@ -505,13 +505,12 @@ const STATE_LABELS = {
   'TRANSITIONING': 'Transisi Sistem...', 
 };
 
-// --- FUNGSI FETCH DENGAN TIMEOUT & NO-CACHE ---
+// --- FUNGSI FETCH DENGAN TIMEOUT LEBIH LAMA ---
 async function fetchWithTimeout(resource, options = {}) {
-  const { timeout = 3000 } = options;
+  const { timeout = 6000 } = options; // Diperpanjang menjadi 6 detik
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   
-  // Memaksa browser TIDAK MENGGUNAKAN CACHE agar status offline langsung terdeteksi
   const response = await fetch(resource, { cache: 'no-store', ...options, signal: controller.signal });
   clearTimeout(id);
   return response;
@@ -614,7 +613,7 @@ function updateChartData(logs) {
 // --- LOGIKA LAMPU LALU LINTAS ---
 async function loadConfig() {
   try {
-    const res = await fetchWithTimeout('/api/config', { timeout: 3000 });
+    const res = await fetchWithTimeout('/api/config', { timeout: 5000 });
     cfg = await res.json();
   } catch (e) {}
 }
@@ -629,7 +628,6 @@ function setLamps(state) {
   const arrowEl = document.getElementById('lamp-arrow');
   arrowEl.classList.remove('arrow-red', 'arrow-yellow', 'arrow-green');
 
-  // Jika server mati, jangan nyalakan lampu apa pun (semua jadi abu-abu redup)
   if (state === 'OFFLINE') return;
 
   if (state === 'MAIN_GREEN') {
@@ -663,8 +661,8 @@ function setLamps(state) {
 // --- RESET UI KETIKA OFFLINE ---
 function handleOfflineState() {
   setConnectionStatus(false);
-  setLamps('OFFLINE'); // Matikan semua lampu
-  hideCameraFeed();    // Paksa sembunyikan gambar sisa terakhir
+  setLamps('OFFLINE'); 
+  hideCameraFeed();    
   
   updateTextSmooth('stat-count', '-');
   updateTextSmooth('stat-density', '-');
@@ -678,7 +676,7 @@ function handleOfflineState() {
 // --- FETCH DATA DASHBOARD ---
 async function refreshLatest() {
   try {
-    const res = await fetchWithTimeout('/api/latest', { timeout: 3000 });
+    const res = await fetchWithTimeout('/api/latest', { timeout: 6000 }); // Diperpanjang ke 6 detik
     if (!res.ok) throw new Error("Gagal menghubungi server");
     
     const data = await res.json();
@@ -703,17 +701,16 @@ async function refreshLatest() {
     updateTextSmooth('state-sub', subtext);
 
   } catch (e) { 
-    // JIKA GAGAL/SERVER MATI, LANGSUNG RESET TAMPILAN
     handleOfflineState();
     console.error("Koneksi terputus dari Raspberry Pi:", e);
   }
 }
 
 async function refreshLogs() {
-  if (isSystemOffline) return; // Jangan request log kalau sistem sudah terdeteksi mati
+  if (isSystemOffline) return; 
   
   try {
-    const res = await fetchWithTimeout('/api/logs', { timeout: 3000 });
+    const res = await fetchWithTimeout('/api/logs', { timeout: 6000 }); // Diperpanjang ke 6 detik
     const logs = await res.json();
     
     updateChartData(logs);
@@ -736,18 +733,16 @@ async function refreshLogs() {
 
 // --- KAMERA & MODAL (ZOOM) ---
 function refreshFrame() {
-  // Jika sistem offline atau frame lama belum selesai, batalkan request
   if (isSystemOffline || isFrameLoading) return; 
   isFrameLoading = true;
   
   const img = document.getElementById('camera-frame');
-  // Date.now() memaksa browser membuang cache gambar lama
   img.src = '/api/frame?t=' + Date.now();
 }
 
 function showCameraFeed() {
   if (isSystemOffline) {
-    hideCameraFeed(); // Cegah gambar nyangkut
+    hideCameraFeed(); 
     return;
   }
   document.getElementById('camera-frame').style.display = 'block';
@@ -790,12 +785,12 @@ async function startApp() {
   await refreshLatest();
   await refreshLogs();
   
-  setInterval(refreshLatest, 2000);
-  setInterval(refreshLogs, 5000);
-  setInterval(refreshFrame, 2000);
+  // MENGURANGI BEBAN RASPBERRY PI
+  setInterval(refreshLatest, 3000); // Teks data ditarik tiap 3 detik
+  setInterval(refreshLogs, 10000);  // Tabel & Grafik ditarik tiap 10 detik
+  setInterval(refreshFrame, 4000);  // Frame kamera ditarik tiap 4 detik
 }
 
-// Eksekusi fungsi utama dengan aman
 startApp();
 </script>
 </body>
