@@ -170,7 +170,7 @@
   .lamp.arrow.arrow-green { background: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
 
   .state-label, .state-sub {
-    transition: opacity 0.3s ease; /* Transisi halus untuk teks stat-state */
+    transition: opacity 0.3s ease; 
   }
 
   .state-label {
@@ -218,7 +218,7 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 1.6rem;
     font-weight: 700;
-    transition: opacity 0.3s ease; /* Transisi halus untuk angka */
+    transition: opacity 0.3s ease; 
   }
 
   /* PANELS */
@@ -253,7 +253,6 @@
     overflow: hidden;
   }
 
-  /* Animasi Badge LIVE */
   @keyframes blink {
     0% { opacity: 1; }
     50% { opacity: 0.5; }
@@ -273,7 +272,7 @@
     font-weight: 700;
     z-index: 5;
     animation: blink 1.5s infinite;
-    display: none; /* Sembunyi sampai gambar sukses dimuat */
+    display: none; 
   }
 
   .camera-placeholder-text {
@@ -290,10 +289,9 @@
     width: 100%;
     height: auto;
     display: none; 
-    cursor: zoom-in; /* Menandakan bisa di-klik */
+    cursor: zoom-in; 
   }
 
-  /* Styling Modal/Zoom Kamera */
   .modal {
     display: none;
     position: fixed;
@@ -340,9 +338,9 @@
 
   /* TABLE & RESPONSIVE SCROLL */
   .table-responsive {
-    max-height: 280px; /* Batas tinggi tabel */
-    overflow-y: auto;  /* Scroll vertikal */
-    overflow-x: auto;  /* Scroll horizontal untuk HP */
+    max-height: 280px; 
+    overflow-y: auto;  
+    overflow-x: auto;  
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     background: #0f1214;
@@ -367,7 +365,7 @@
     text-transform: uppercase; 
     font-size: 0.75rem; 
     letter-spacing: 0.05em;
-    position: sticky; /* Membuat header tabel menempel di atas saat discroll */
+    position: sticky; 
     top: 0;
     background: var(--panel);
     z-index: 10;
@@ -377,7 +375,6 @@
   tr:last-child td { border-bottom: none; }
   .empty { color: var(--muted); font-size: 0.85rem; padding: 24px 10px; text-align: center; }
 
-  /* Kostumisasi Scrollbar */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
@@ -496,6 +493,7 @@
 <script>
 let cfg = {};
 let densityChartInst = null;
+let isFrameLoading = false; 
 
 const STATE_LABELS = {
   'MAIN_GREEN': 'Jalur Utama: Hijau',
@@ -506,16 +504,31 @@ const STATE_LABELS = {
   'TRANSITIONING': 'Transisi Sistem...', 
 };
 
-// --- FUNGSI UTILITAS: Animasi Transisi Teks Smooth ---
-function updateTextSmooth(elementId, newValue) {
-  const el = document.getElementById(elementId);
-  if (el.textContent === String(newValue)) return; // Jika tidak ada perubahan, abaikan
+// --- FUNGSI FETCH DENGAN TIMEOUT ---
+async function fetchWithTimeout(resource, options = {}) {
+  const { timeout = 5000 } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
   
-  el.style.opacity = '0'; // Mulai fade-out
-  setTimeout(() => {
-    el.textContent = newValue; // Ganti teks saat transparan
-    el.style.opacity = '1'; // Mulai fade-in
-  }, 300); // 300ms menyesuaikan CSS transition
+  const response = await fetch(resource, { ...options, signal: controller.signal });
+  clearTimeout(id);
+  return response;
+}
+
+// --- FUNGSI UTILITAS: Animasi Teks ---
+function updateTextSmooth(elementId, newValue) {
+  try {
+    const el = document.getElementById(elementId);
+    if (!el || el.textContent === String(newValue)) return; 
+    
+    el.style.opacity = '0'; 
+    setTimeout(() => {
+      el.textContent = newValue; 
+      el.style.opacity = '1'; 
+    }, 300);
+  } catch (e) {
+    console.warn("Gagal update teks:", elementId);
+  }
 }
 
 // --- JAM REAL-TIME ---
@@ -542,52 +555,50 @@ function setConnectionStatus(isOnline) {
 
 // --- INISIALISASI CHART.JS ---
 function initChart() {
-  const ctx = document.getElementById('densityChart').getContext('2d');
-  Chart.defaults.color = '#8a9199';
-  Chart.defaults.font.family = "'JetBrains Mono', monospace";
-  
-  densityChartInst = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Tingkat Kepadatan (%)',
-        data: [],
-        borderColor: '#34c76f',
-        backgroundColor: 'rgba(52,199,111,0.15)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-        pointBackgroundColor: '#1d2226'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { mode: 'index', intersect: false }
-      },
-      scales: {
-        y: { 
-          beginAtZero: true, 
-          max: 100, 
-          grid: { color: 'rgba(42, 48, 54, 0.5)' },
-          ticks: { callback: function(value) { return value + '%' } }
-        },
-        x: { grid: { display: false } }
-      },
-      animation: { duration: 0 } // Matikan animasi tiap update agar tidak ngelag
+  try {
+    if (typeof Chart === 'undefined') {
+      console.warn("Library Chart.js tidak ditemukan (mode offline). Grafik dinonaktifkan.");
+      document.querySelector('.chart-container').innerHTML = '<div class="empty">Grafik tidak tersedia (Offline)</div>';
+      return;
     }
-  });
+    const ctx = document.getElementById('densityChart').getContext('2d');
+    Chart.defaults.color = '#8a9199';
+    Chart.defaults.font.family = "'JetBrains Mono', monospace";
+    
+    densityChartInst = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Tingkat Kepadatan (%)',
+          data: [],
+          borderColor: '#34c76f',
+          backgroundColor: 'rgba(52,199,111,0.15)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: '#1d2226'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(42, 48, 54, 0.5)' }, ticks: { callback: function(value) { return value + '%' } } },
+          x: { grid: { display: false } }
+        },
+        animation: { duration: 0 }
+      }
+    });
+  } catch (e) {
+    console.error("Gagal menginisialisasi grafik:", e);
+  }
 }
 
-// Update grafik dengan data log terbaru
 function updateChartData(logs) {
   if (!densityChartInst || logs.length === 0) return;
-  
-  // Ambil 15 log terakhir, balik urutannya agar berurutan dari kiri ke kanan (waktu lampau ke terbaru)
   const chartData = [...logs].reverse().slice(-15);
   
   densityChartInst.data.labels = chartData.map(row => {
@@ -602,9 +613,9 @@ function updateChartData(logs) {
 // --- LOGIKA LAMPU LALU LINTAS ---
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetchWithTimeout('/api/config', { timeout: 3000 });
     cfg = await res.json();
-  } catch (e) { /* default fallback */ }
+  } catch (e) {}
 }
 
 function setLamps(state) {
@@ -648,13 +659,12 @@ function setLamps(state) {
 // --- FETCH DATA DASHBOARD ---
 async function refreshLatest() {
   try {
-    const res = await fetch('/api/latest');
+    const res = await fetchWithTimeout('/api/latest', { timeout: 4000 });
     const data = await res.json();
     
-    if (!data || !data.timestamp) throw new Error("Data invalid");
-    setConnectionStatus(true);
+    if (!data || data.timestamp === undefined) throw new Error("Format data tidak valid");
+    setConnectionStatus(true); 
 
-    // Memperbarui UI dengan efek transisi smooth
     updateTextSmooth('stat-count', data.vehicle_count);
     updateTextSmooth('stat-density', (data.density * 100).toFixed(0) + '%');
     updateTextSmooth('stat-state', STATE_LABELS[data.state] || data.state);
@@ -673,20 +683,20 @@ async function refreshLatest() {
 
   } catch (e) { 
     setConnectionStatus(false);
+    console.error("Gagal memuat data terbaru:", e);
   }
 }
 
 async function refreshLogs() {
   try {
-    const res = await fetch('/api/logs');
+    const res = await fetchWithTimeout('/api/logs', { timeout: 4000 });
     const logs = await res.json();
     
-    // Update Grafik
     updateChartData(logs);
 
-    // Update Tabel Log
     const body = document.getElementById('log-body');
-    if (!logs.length) return;
+    if (!logs || !logs.length) return;
+    
     body.innerHTML = logs.map(row => `
       <tr>
         <td>${new Date(row.timestamp).toLocaleTimeString('id-ID')}</td>
@@ -695,11 +705,16 @@ async function refreshLogs() {
         <td>${STATE_LABELS[row.state] || row.state}</td>
         <td>${row.phase_elapsed} Detik</td>
       </tr>`).join('');
-  } catch (e) { /* diamkan */ }
+  } catch (e) { 
+    console.error("Gagal memuat log:", e);
+  }
 }
 
 // --- KAMERA & MODAL (ZOOM) ---
 function refreshFrame() {
+  if (isFrameLoading) return; 
+  isFrameLoading = true;
+  
   const img = document.getElementById('camera-frame');
   img.src = '/api/frame?t=' + Date.now();
 }
@@ -707,11 +722,13 @@ function refreshFrame() {
 function showCameraFeed() {
   document.getElementById('camera-frame').style.display = 'block';
   document.getElementById('live-badge').style.display = 'block';
+  isFrameLoading = false; 
 }
 
 function hideCameraFeed() {
   document.getElementById('camera-frame').style.display = 'none';
   document.getElementById('live-badge').style.display = 'none';
+  isFrameLoading = false; 
 }
 
 // Modal Logika
@@ -733,17 +750,18 @@ window.onclick = function(event) {
   }
 }
 
-// --- JALANKAN PROGRAM ---
+// --- JALANKAN PROGRAM UTAMA ---
 (async function init() {
   await loadConfig();
   initChart();
-  refreshLatest();
-  refreshLogs();
+  
+  await refreshLatest();
+  await refreshLogs();
+  
+  setInterval(refreshLatest, 2000);
+  setInterval(refreshLogs, 5000);
+  setInterval(refreshFrame, 2000);
 })();
-
-setInterval(refreshLatest, 2000);
-setInterval(refreshLogs, 5000);
-setInterval(refreshFrame, 2000);
 </script>
 </body>
 </html>
