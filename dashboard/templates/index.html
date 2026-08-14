@@ -740,18 +740,20 @@ const spanClose = document.getElementById("close-modal");
 camFrame.onclick = function(){
   modal.style.display = "block";
   modalImg.src = this.src;
-}
+};
+
 spanClose.onclick = function() { 
   modal.style.display = "none";
-}
+};
+
 window.onclick = function(event) {
   if (event.target == modal) {
     modal.style.display = "none";
   }
-}
+};
 
 // --- JALANKAN PROGRAM UTAMA ---
-(async function init() {
+async function startApp() {
   await loadConfig();
   initChart();
   
@@ -761,7 +763,10 @@ window.onclick = function(event) {
   setInterval(refreshLatest, 2000);
   setInterval(refreshLogs, 5000);
   setInterval(refreshFrame, 2000);
-})();
+}
+
+// Eksekusi fungsi utama dengan aman
+startApp();
 </script>
 </body>
 </html>
