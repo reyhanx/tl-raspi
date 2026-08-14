@@ -494,6 +494,7 @@
 let cfg = {};
 let densityChartInst = null;
 let isFrameLoading = false; 
+let isSystemOffline = false; // Flag penanda server mati
 
 const STATE_LABELS = {
   'MAIN_GREEN': 'Jalur Utama: Hijau',
@@ -504,13 +505,14 @@ const STATE_LABELS = {
   'TRANSITIONING': 'Transisi Sistem...', 
 };
 
-// --- FUNGSI FETCH DENGAN TIMEOUT ---
+// --- FUNGSI FETCH DENGAN TIMEOUT & NO-CACHE ---
 async function fetchWithTimeout(resource, options = {}) {
-  const { timeout = 5000 } = options;
+  const { timeout = 3000 } = options;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   
-  const response = await fetch(resource, { ...options, signal: controller.signal });
+  // Memaksa browser TIDAK MENGGUNAKAN CACHE agar status offline langsung terdeteksi
+  const response = await fetch(resource, { cache: 'no-store', ...options, signal: controller.signal });
   clearTimeout(id);
   return response;
 }
@@ -542,6 +544,8 @@ updateClock();
 // --- STATUS KONEKSI ---
 function setConnectionStatus(isOnline) {
   const statusEl = document.getElementById('conn-status');
+  isSystemOffline = !isOnline;
+  
   if (isOnline) {
     statusEl.textContent = 'TERHUBUNG';
     statusEl.style.background = 'var(--go)';
@@ -557,8 +561,7 @@ function setConnectionStatus(isOnline) {
 function initChart() {
   try {
     if (typeof Chart === 'undefined') {
-      console.warn("Library Chart.js tidak ditemukan (mode offline). Grafik dinonaktifkan.");
-      document.querySelector('.chart-container').innerHTML = '<div class="empty">Grafik tidak tersedia (Offline)</div>';
+      console.warn("Library Chart.js tidak ditemukan (mode offline).");
       return;
     }
     const ctx = document.getElementById('densityChart').getContext('2d');
@@ -592,9 +595,7 @@ function initChart() {
         animation: { duration: 0 }
       }
     });
-  } catch (e) {
-    console.error("Gagal menginisialisasi grafik:", e);
-  }
+  } catch (e) {}
 }
 
 function updateChartData(logs) {
@@ -628,6 +629,9 @@ function setLamps(state) {
   const arrowEl = document.getElementById('lamp-arrow');
   arrowEl.classList.remove('arrow-red', 'arrow-yellow', 'arrow-green');
 
+  // Jika server mati, jangan nyalakan lampu apa pun (semua jadi abu-abu redup)
+  if (state === 'OFFLINE') return;
+
   if (state === 'MAIN_GREEN') {
     document.getElementById('lamp-main-a-green').classList.add('active');
     document.getElementById('lamp-main-b-green').classList.add('active');
@@ -656,13 +660,30 @@ function setLamps(state) {
   }
 }
 
+// --- RESET UI KETIKA OFFLINE ---
+function handleOfflineState() {
+  setConnectionStatus(false);
+  setLamps('OFFLINE'); // Matikan semua lampu
+  hideCameraFeed();    // Paksa sembunyikan gambar sisa terakhir
+  
+  updateTextSmooth('stat-count', '-');
+  updateTextSmooth('stat-density', '-');
+  updateTextSmooth('stat-state', 'OFFLINE');
+  updateTextSmooth('stat-elapsed', '-');
+  
+  updateTextSmooth('state-label', 'SISTEM TERPUTUS');
+  updateTextSmooth('state-sub', 'Koneksi ke Raspberry Pi terputus. Pastikan program main.py sedang berjalan.');
+}
+
 // --- FETCH DATA DASHBOARD ---
 async function refreshLatest() {
   try {
-    const res = await fetchWithTimeout('/api/latest', { timeout: 4000 });
-    const data = await res.json();
+    const res = await fetchWithTimeout('/api/latest', { timeout: 3000 });
+    if (!res.ok) throw new Error("Gagal menghubungi server");
     
-    if (!data || data.timestamp === undefined) throw new Error("Format data tidak valid");
+    const data = await res.json();
+    if (!data || data.timestamp === undefined) throw new Error("Data tidak valid");
+    
     setConnectionStatus(true); 
 
     updateTextSmooth('stat-count', data.vehicle_count);
@@ -682,14 +703,17 @@ async function refreshLatest() {
     updateTextSmooth('state-sub', subtext);
 
   } catch (e) { 
-    setConnectionStatus(false);
-    console.error("Gagal memuat data terbaru:", e);
+    // JIKA GAGAL/SERVER MATI, LANGSUNG RESET TAMPILAN
+    handleOfflineState();
+    console.error("Koneksi terputus dari Raspberry Pi:", e);
   }
 }
 
 async function refreshLogs() {
+  if (isSystemOffline) return; // Jangan request log kalau sistem sudah terdeteksi mati
+  
   try {
-    const res = await fetchWithTimeout('/api/logs', { timeout: 4000 });
+    const res = await fetchWithTimeout('/api/logs', { timeout: 3000 });
     const logs = await res.json();
     
     updateChartData(logs);
@@ -712,14 +736,20 @@ async function refreshLogs() {
 
 // --- KAMERA & MODAL (ZOOM) ---
 function refreshFrame() {
-  if (isFrameLoading) return; 
+  // Jika sistem offline atau frame lama belum selesai, batalkan request
+  if (isSystemOffline || isFrameLoading) return; 
   isFrameLoading = true;
   
   const img = document.getElementById('camera-frame');
+  // Date.now() memaksa browser membuang cache gambar lama
   img.src = '/api/frame?t=' + Date.now();
 }
 
 function showCameraFeed() {
+  if (isSystemOffline) {
+    hideCameraFeed(); // Cegah gambar nyangkut
+    return;
+  }
   document.getElementById('camera-frame').style.display = 'block';
   document.getElementById('live-badge').style.display = 'block';
   isFrameLoading = false; 
