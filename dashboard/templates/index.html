@@ -6,380 +6,73 @@
 <title>Traffic Monitor — Pertigaan Sampang, Pati</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Import Chart.js untuk Grafik -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-  :root {
-    --bg: #14171a;
-    --panel: #1d2226;
-    --panel-border: #2a3036;
-    --text: #e7e9ea;
-    --muted: #8a9199;
-    --go: #34c76f;
-    --caution: #f2a93b;
-    --stop: #e2483c;
-  }
-
+  :root { --bg: #14171a; --panel: #1d2226; --panel-border: #2a3036; --text: #e7e9ea; --muted: #8a9199; --go: #34c76f; --caution: #f2a93b; --stop: #e2483c; }
   * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    padding: 24px 16px 60px;
-  }
-
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; padding: 24px 16px 60px; }
   .wrap { max-width: 960px; margin: 0 auto; }
 
-  /* HEADER & TOP BAR */
-  header {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 28px;
-    gap: 12px;
-  }
+  header { display: flex; flex-direction: column; margin-bottom: 28px; gap: 12px; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .title-group { display: flex; align-items: center; gap: 16px; }
+  header h1 { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  
+  #conn-status { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; background: var(--caution); color: #000; transition: background 0.3s ease, color 0.3s ease; }
+  .clock { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 1rem; font-weight: 600; background: var(--panel); border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px; }
+  header .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
-  .header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .title-group {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  header h1 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-
-  #conn-status {
-    font-size: 0.75rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 4px 10px;
-    border-radius: 6px;
-    background: var(--caution);
-    color: #000;
-    transition: background 0.3s ease, color 0.3s ease;
-  }
-
-  .clock {
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text);
-    font-size: 1rem;
-    font-weight: 600;
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    padding: 6px 12px;
-    border-radius: 6px;
-  }
-
-  header .eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  /* SIGNALS */
-  .signal-panel {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 16px;
-    padding: 28px;
-    margin-bottom: 20px;
-  }
-
-  .lamp-groups {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .signal-lamp {
-    display: flex;
-    flex-direction: column;
-    align-items: center; 
-    padding: 20px 16px; 
-    background: #0f1214;
-    border-radius: 12px;
-    border: 1px solid var(--panel-border);
-    height: 100%;
-  }
-
-  .lamp-group-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 16px;
-    min-height: 2.6em;
-    line-height: 1.3em;
-    text-align: center; 
-  }
-
-  .lamps-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    flex: 1;
-    width: 100%;
-  }
-
-  .lamp {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: #2a3036; 
-    border: 2px solid #1a1e22; 
-    transition: all 0.3s ease;
-  }
-
+  .signal-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; padding: 28px; margin-bottom: 20px; }
+  .lamp-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .signal-lamp { display: flex; flex-direction: column; align-items: center; padding: 20px 16px; background: #0f1214; border-radius: 12px; border: 1px solid var(--panel-border); height: 100%; }
+  .lamp-group-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 16px; min-height: 2.6em; line-height: 1.3em; text-align: center; }
+  .lamps-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex: 1; width: 100%; }
+  
+  .lamp { width: 44px; height: 44px; border-radius: 50%; background: #2a3036; border: 2px solid #1a1e22; transition: all 0.3s ease; }
   .lamp.red.active { background: var(--stop); border-color: var(--stop); box-shadow: 0 0 22px 4px rgba(226,72,60,0.55); }
   .lamp.yellow.active { background: var(--caution); border-color: var(--caution); box-shadow: 0 0 22px 4px rgba(242,169,59,0.55); }
   .lamp.green.active { background: var(--go); border-color: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
 
-  .lamp.arrow {
-    width: 44px;
-    height: 44px;
-    border-radius: 6px;
-    clip-path: polygon(50% 0%, 100% 55%, 72% 55%, 72% 100%, 28% 100%, 28% 55%, 0% 55%);
-    background: #3a4148;
-    border: none;
-  }
+  .lamp.arrow { border-radius: 6px; clip-path: polygon(50% 0%, 100% 55%, 72% 55%, 72% 100%, 28% 100%, 28% 55%, 0% 55%); background: #3a4148; border: none; }
   .lamp.arrow.arrow-red { background: var(--stop); box-shadow: 0 0 22px 4px rgba(226,72,60,0.55); }
   .lamp.arrow.arrow-yellow { background: var(--caution); box-shadow: 0 0 22px 4px rgba(242,169,59,0.55); }
   .lamp.arrow.arrow-green { background: var(--go); box-shadow: 0 0 22px 4px rgba(52,199,111,0.55); }
 
-  .state-label, .state-sub {
-    transition: opacity 0.3s ease; 
-  }
+  .state-label, .state-sub { transition: opacity 0.3s ease; }
+  .state-label { font-family: 'JetBrains Mono', monospace; font-size: 1.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--text); }
+  .state-sub { color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px; }
 
-  .state-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-    color: var(--text);
-  }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 20px; }
+  .stat-card .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; font-weight: 600; }
+  .stat-card .value { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; transition: opacity 0.3s ease; }
 
-  .state-sub { 
-    color: var(--muted); 
-    font-size: 0.95rem; 
-    border-top: 1px solid var(--panel-border);
-    padding-top: 12px;
-    margin-top: 12px;
-  }
+  .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .panel h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 16px; font-weight: 600; }
 
-  /* STATS */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-    margin-bottom: 20px;
-  }
+  .camera-wrapper { position: relative; width: 100%; min-height: 250px; background: #0f1214; border: 1px solid var(--panel-border); border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+  .live-badge { position: absolute; top: 12px; right: 12px; background: rgba(226,72,60,0.9); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; z-index: 5; animation: blink 1.5s infinite; display: none; }
+  .camera-placeholder-text { position: absolute; font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 0.9rem; z-index: 1; }
+  .frame-preview img { position: relative; z-index: 2; width: 100%; height: auto; display: none; cursor: zoom-in; }
 
-  .stat-card {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 12px;
-    padding: 20px;
-  }
-
-  .stat-card .label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-
-  .stat-card .value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.6rem;
-    font-weight: 700;
-    transition: opacity 0.3s ease; 
-  }
-
-  /* PANELS */
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-  }
-
-  .panel h2 {
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 0 0 16px;
-    font-weight: 600;
-  }
-
-  /* CAMERA & MODAL */
-  .camera-wrapper {
-    position: relative;
-    width: 100%;
-    min-height: 250px;
-    background: #0f1214;
-    border: 1px solid var(--panel-border);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  @keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-
-  .live-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(226,72,60,0.9);
-    color: #fff;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    z-index: 5;
-    animation: blink 1.5s infinite;
-    display: none; 
-  }
-
-  .camera-placeholder-text {
-    position: absolute;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--muted);
-    font-size: 0.9rem;
-    z-index: 1;
-  }
-
-  .frame-preview img {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: auto;
-    display: none; 
-    cursor: zoom-in; 
-  }
-
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    padding-top: 60px;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.9);
-    backdrop-filter: blur(5px);
-  }
-
-  .modal-content {
-    margin: auto;
-    display: block;
-    width: 90%;
-    max-width: 1000px;
-    border-radius: 12px;
-    border: 2px solid var(--panel-border);
-  }
-
-  .close-modal {
-    position: absolute;
-    top: 20px;
-    right: 35px;
-    color: #f1f1f1;
-    font-size: 40px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-
+  .modal { display: none; position: fixed; z-index: 1000; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
+  .modal-content { margin: auto; display: block; width: 90%; max-width: 1000px; border-radius: 12px; border: 2px solid var(--panel-border); }
+  .close-modal { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.3s; }
   .close-modal:hover { color: #bbb; }
 
-  /* CHART CONTAINER */
-  .chart-container {
-    position: relative;
-    height: 220px;
-    width: 100%;
-    margin-bottom: 30px;
-  }
-
-  /* TABLE & RESPONSIVE SCROLL */
-  .table-responsive {
-    max-height: 280px; 
-    overflow-y: auto;  
-    overflow-x: auto;  
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    background: #0f1214;
-  }
-
-  table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    font-family: 'JetBrains Mono', monospace; 
-    font-size: 0.9rem; 
-  }
-  
-  th, td { 
-    text-align: left; 
-    padding: 12px 16px; 
-    border-bottom: 1px solid var(--panel-border); 
-  }
-  
-  th { 
-    color: var(--muted); 
-    font-weight: 600; 
-    text-transform: uppercase; 
-    font-size: 0.75rem; 
-    letter-spacing: 0.05em;
-    position: sticky; 
-    top: 0;
-    background: var(--panel);
-    z-index: 10;
-    border-bottom: 2px solid var(--panel-border);
-  }
-  
+  .chart-container { position: relative; height: 220px; width: 100%; margin-bottom: 30px; }
+  .table-responsive { max-height: 280px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--panel-border); border-radius: 8px; background: #0f1214; }
+  table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--panel-border); }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; position: sticky; top: 0; background: var(--panel); z-index: 10; border-bottom: 2px solid var(--panel-border); }
   tr:last-child td { border-bottom: none; }
   .empty { color: var(--muted); font-size: 0.85rem; padding: 24px 10px; text-align: center; }
-
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
 </style>
 </head>
 <body>
@@ -458,33 +151,25 @@
     <div class="camera-wrapper">
       <div class="live-badge" id="live-badge">LIVE</div>
       <div class="camera-placeholder-text">Kamera Offline / Menunggu Feed...</div>
-      <img id="camera-frame" src="/api/frame" alt="Frame kamera terbaru" 
-           onload="showCameraFeed()" 
-           onerror="hideCameraFeed()">
+      <!-- Kita pakai img biasa yang src-nya akan diupdate via JS secara pintar -->
+      <img id="camera-frame" src="" alt="Frame kamera terbaru">
     </div>
   </div>
 
   <div class="panel">
     <h2>Grafik Kepadatan Lalu Lintas</h2>
-    <div class="chart-container">
-      <canvas id="densityChart"></canvas>
-    </div>
-
+    <div class="chart-container"><canvas id="densityChart"></canvas></div>
     <h2>Log Peristiwa Terakhir</h2>
     <div class="table-responsive">
       <table>
-        <thead>
-          <tr><th>Waktu</th><th>Kendaraan</th><th>Kepadatan</th><th>Status Lampu</th><th>Durasi</th></tr>
-        </thead>
-        <tbody id="log-body">
-          <tr><td colspan="5" class="empty">Belum ada data log yang tercatat.</td></tr>
-        </tbody>
+        <thead><tr><th>Waktu</th><th>Kendaraan</th><th>Kepadatan</th><th>Status Lampu</th><th>Durasi</th></tr></thead>
+        <tbody id="log-body"><tr><td colspan="5" class="empty">Belum ada data log yang tercatat.</td></tr></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- Elemen Modal (Zoom Kamera) -->
+<!-- Modal Zoom -->
 <div id="img-modal" class="modal">
   <span class="close-modal" id="close-modal">&times;</span>
   <img class="modal-content" id="modal-img">
@@ -493,106 +178,58 @@
 <script>
 let cfg = {};
 let densityChartInst = null;
-let isFrameLoading = false; 
 let isSystemOffline = false; 
 
+// Konfigurasi Kecepatan Real-time
+const DELAY_LATEST = 800;  // Minta data tiap 0.8 detik
+const DELAY_FRAME = 1000;  // Minta frame tiap 1 detik
+const DELAY_LOGS = 5000;   // Minta log tiap 5 detik
+
 const STATE_LABELS = {
-  'MAIN_GREEN': 'Jalur Utama: Hijau',
-  'MAIN_YELLOW': 'Jalur Utama: Transisi',
-  'ALL_RED': 'Semua Jalur: Merah',
-  'BRANCH_GREEN': 'Jalur Cabang: Hijau',
-  'BRANCH_YELLOW': 'Jalur Cabang: Transisi',
-  'TRANSITIONING': 'Transisi Sistem...', 
+  'MAIN_GREEN': 'Jalur Utama: Hijau', 'MAIN_YELLOW': 'Jalur Utama: Transisi', 'ALL_RED': 'Semua Jalur: Merah',
+  'BRANCH_GREEN': 'Jalur Cabang: Hijau', 'BRANCH_YELLOW': 'Jalur Cabang: Transisi', 'TRANSITIONING': 'Transisi Sistem...', 
 };
 
-// --- FUNGSI FETCH DENGAN TIMEOUT LEBIH LAMA ---
 async function fetchWithTimeout(resource, options = {}) {
-  const { timeout = 6000 } = options; // Diperpanjang menjadi 6 detik
+  const { timeout = 4000 } = options;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
-  
   const response = await fetch(resource, { cache: 'no-store', ...options, signal: controller.signal });
   clearTimeout(id);
   return response;
 }
 
-// --- FUNGSI UTILITAS: Animasi Teks ---
 function updateTextSmooth(elementId, newValue) {
   try {
     const el = document.getElementById(elementId);
     if (!el || el.textContent === String(newValue)) return; 
-    
     el.style.opacity = '0'; 
-    setTimeout(() => {
-      el.textContent = newValue; 
-      el.style.opacity = '1'; 
-    }, 300);
-  } catch (e) {
-    console.warn("Gagal update teks:", elementId);
-  }
+    setTimeout(() => { el.textContent = newValue; el.style.opacity = '1'; }, 300);
+  } catch (e) {}
 }
 
-// --- JAM REAL-TIME ---
-function updateClock() {
-  const now = new Date();
-  document.getElementById('realtime-clock').textContent = now.toLocaleTimeString('id-ID', { hour12: false });
-}
-setInterval(updateClock, 1000);
-updateClock();
+function updateClock() { document.getElementById('realtime-clock').textContent = new Date().toLocaleTimeString('id-ID', { hour12: false }); }
+setInterval(updateClock, 1000); updateClock();
 
-// --- STATUS KONEKSI ---
 function setConnectionStatus(isOnline) {
   const statusEl = document.getElementById('conn-status');
   isSystemOffline = !isOnline;
-  
   if (isOnline) {
-    statusEl.textContent = 'TERHUBUNG';
-    statusEl.style.background = 'var(--go)';
-    statusEl.style.color = '#000';
+    statusEl.textContent = 'TERHUBUNG'; statusEl.style.background = 'var(--go)'; statusEl.style.color = '#000';
   } else {
-    statusEl.textContent = 'TERPUTUS';
-    statusEl.style.background = 'var(--stop)';
-    statusEl.style.color = '#fff';
+    statusEl.textContent = 'TERPUTUS'; statusEl.style.background = 'var(--stop)'; statusEl.style.color = '#fff';
   }
 }
 
-// --- INISIALISASI CHART.JS ---
 function initChart() {
   try {
-    if (typeof Chart === 'undefined') {
-      console.warn("Library Chart.js tidak ditemukan (mode offline).");
-      return;
-    }
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('densityChart').getContext('2d');
-    Chart.defaults.color = '#8a9199';
-    Chart.defaults.font.family = "'JetBrains Mono', monospace";
-    
+    Chart.defaults.color = '#8a9199'; Chart.defaults.font.family = "'JetBrains Mono', monospace";
     densityChartInst = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Tingkat Kepadatan (%)',
-          data: [],
-          borderColor: '#34c76f',
-          backgroundColor: 'rgba(52,199,111,0.15)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          pointBackgroundColor: '#1d2226'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-        scales: {
-          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(42, 48, 54, 0.5)' }, ticks: { callback: function(value) { return value + '%' } } },
-          x: { grid: { display: false } }
-        },
-        animation: { duration: 0 }
-      }
+      data: { labels: [], datasets: [{ label: 'Kepadatan (%)', data: [], borderColor: '#34c76f', backgroundColor: 'rgba(52,199,111,0.15)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#1d2226' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } }, animation: { duration: 0 } }
     });
   } catch (e) {}
 }
@@ -600,27 +237,15 @@ function initChart() {
 function updateChartData(logs) {
   if (!densityChartInst || logs.length === 0) return;
   const chartData = [...logs].reverse().slice(-15);
-  
-  densityChartInst.data.labels = chartData.map(row => {
-    const d = new Date(row.timestamp);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  });
-  
+  densityChartInst.data.labels = chartData.map(row => `${String(new Date(row.timestamp).getHours()).padStart(2, '0')}:${String(new Date(row.timestamp).getMinutes()).padStart(2, '0')}`);
   densityChartInst.data.datasets[0].data = chartData.map(row => (row.density * 100).toFixed(0));
   densityChartInst.update();
 }
 
-// --- LOGIKA LAMPU LALU LINTAS ---
-async function loadConfig() {
-  try {
-    const res = await fetchWithTimeout('/api/config', { timeout: 5000 });
-    cfg = await res.json();
-  } catch (e) {}
-}
+async function loadConfig() { try { const res = await fetchWithTimeout('/api/config'); cfg = await res.json(); } catch (e) {} }
 
 function setLamps(state) {
-  const groups = ['main-a', 'main-b', 'branch'];
-  groups.forEach(g => {
+  ['main-a', 'main-b', 'branch'].forEach(g => {
     document.getElementById(`lamp-${g}-red`).classList.remove('active');
     document.getElementById(`lamp-${g}-yellow`).classList.remove('active');
     document.getElementById(`lamp-${g}-green`).classList.remove('active');
@@ -629,166 +254,111 @@ function setLamps(state) {
   arrowEl.classList.remove('arrow-red', 'arrow-yellow', 'arrow-green');
 
   if (state === 'OFFLINE') return;
-
   if (state === 'MAIN_GREEN') {
-    document.getElementById('lamp-main-a-green').classList.add('active');
-    document.getElementById('lamp-main-b-green').classList.add('active');
-    document.getElementById('lamp-branch-red').classList.add('active');
-    arrowEl.classList.add('arrow-red');
+    document.getElementById('lamp-main-a-green').classList.add('active'); document.getElementById('lamp-main-b-green').classList.add('active'); document.getElementById('lamp-branch-red').classList.add('active'); arrowEl.classList.add('arrow-red');
   } else if (state === 'MAIN_YELLOW') {
-    document.getElementById('lamp-main-a-yellow').classList.add('active');
-    document.getElementById('lamp-main-b-yellow').classList.add('active');
-    document.getElementById('lamp-branch-red').classList.add('active');
-    arrowEl.classList.add('arrow-red');
+    document.getElementById('lamp-main-a-yellow').classList.add('active'); document.getElementById('lamp-main-b-yellow').classList.add('active'); document.getElementById('lamp-branch-red').classList.add('active'); arrowEl.classList.add('arrow-red');
   } else if (state === 'BRANCH_GREEN') {
-    document.getElementById('lamp-branch-green').classList.add('active');
-    arrowEl.classList.add('arrow-green');
-    document.getElementById('lamp-main-a-red').classList.add('active');
-    document.getElementById('lamp-main-b-red').classList.add('active');
+    document.getElementById('lamp-branch-green').classList.add('active'); arrowEl.classList.add('arrow-green'); document.getElementById('lamp-main-a-red').classList.add('active'); document.getElementById('lamp-main-b-red').classList.add('active');
   } else if (state === 'BRANCH_YELLOW') {
-    document.getElementById('lamp-branch-yellow').classList.add('active');
-    arrowEl.classList.add('arrow-yellow');
-    document.getElementById('lamp-main-a-red').classList.add('active');
-    document.getElementById('lamp-main-b-red').classList.add('active');
+    document.getElementById('lamp-branch-yellow').classList.add('active'); arrowEl.classList.add('arrow-yellow'); document.getElementById('lamp-main-a-red').classList.add('active'); document.getElementById('lamp-main-b-red').classList.add('active');
   } else {
-    document.getElementById('lamp-main-a-red').classList.add('active');
-    document.getElementById('lamp-main-b-red').classList.add('active');
-    document.getElementById('lamp-branch-red').classList.add('active');
-    arrowEl.classList.add('arrow-red');
+    document.getElementById('lamp-main-a-red').classList.add('active'); document.getElementById('lamp-main-b-red').classList.add('active'); document.getElementById('lamp-branch-red').classList.add('active'); arrowEl.classList.add('arrow-red');
   }
 }
 
-// --- RESET UI KETIKA OFFLINE ---
 function handleOfflineState() {
-  setConnectionStatus(false);
-  setLamps('OFFLINE'); 
-  hideCameraFeed();    
-  
-  updateTextSmooth('stat-count', '-');
-  updateTextSmooth('stat-density', '-');
-  updateTextSmooth('stat-state', 'OFFLINE');
-  updateTextSmooth('stat-elapsed', '-');
-  
-  updateTextSmooth('state-label', 'SISTEM TERPUTUS');
-  updateTextSmooth('state-sub', 'Koneksi ke Raspberry Pi terputus. Pastikan program main.py sedang berjalan.');
+  setConnectionStatus(false); setLamps('OFFLINE'); 
+  document.getElementById('camera-frame').style.display = 'none';
+  document.getElementById('live-badge').style.display = 'none';
+  updateTextSmooth('stat-count', '-'); updateTextSmooth('stat-density', '-'); updateTextSmooth('stat-state', 'OFFLINE'); updateTextSmooth('stat-elapsed', '-');
+  updateTextSmooth('state-label', 'SISTEM TERPUTUS'); updateTextSmooth('state-sub', 'Koneksi ke Raspberry Pi terputus. Pastikan program main.py berjalan.');
 }
 
-// --- FETCH DATA DASHBOARD ---
-async function refreshLatest() {
+// === SISTEM POLLING PINTAR (RECURSIVE) ===
+
+// 1. Loop Data Lalu Lintas (Sangat Cepat tapi Aman)
+async function loopLatest() {
   try {
-    const res = await fetchWithTimeout('/api/latest', { timeout: 6000 }); // Diperpanjang ke 6 detik
-    if (!res.ok) throw new Error("Gagal menghubungi server");
-    
+    const res = await fetchWithTimeout('/api/latest', { timeout: 3000 });
+    if (!res.ok) throw new Error("Server error");
     const data = await res.json();
-    if (!data || data.timestamp === undefined) throw new Error("Data tidak valid");
     
     setConnectionStatus(true); 
-
-    updateTextSmooth('stat-count', data.vehicle_count);
-    updateTextSmooth('stat-density', (data.density * 100).toFixed(0) + '%');
-    updateTextSmooth('stat-state', STATE_LABELS[data.state] || data.state);
-    updateTextSmooth('stat-elapsed', data.phase_elapsed + ' Detik');
+    updateTextSmooth('stat-count', data.vehicle_count); updateTextSmooth('stat-density', (data.density * 100).toFixed(0) + '%');
+    updateTextSmooth('stat-state', STATE_LABELS[data.state] || data.state); updateTextSmooth('stat-elapsed', data.phase_elapsed + ' Detik');
     updateTextSmooth('state-label', STATE_LABELS[data.state] || data.state);
-
     setLamps(data.state);
 
     let subtext = 'Sistem sedang dalam fase transisi pergantian jalur...';
-    if (data.state === 'MAIN_GREEN') {
-      subtext = `Durasi hijau: ${data.phase_elapsed} dtk. Terdeteksi ${data.vehicle_count} kendaraan dari arah Jakenan.`;
-    } else if (data.state === 'BRANCH_GREEN') {
-      subtext = `Durasi hijau: ${data.phase_elapsed} dtk (Maks: ${cfg.max_green_branch || '-'} dtk).`;
-    }
+    if (data.state === 'MAIN_GREEN') subtext = `Durasi hijau: ${data.phase_elapsed} dtk. Terdeteksi ${data.vehicle_count} kendaraan dari arah Jakenan.`;
+    else if (data.state === 'BRANCH_GREEN') subtext = `Durasi hijau: ${data.phase_elapsed} dtk (Maks: ${cfg.max_green_branch || '-'} dtk).`;
     updateTextSmooth('state-sub', subtext);
 
-  } catch (e) { 
-    handleOfflineState();
-    console.error("Koneksi terputus dari Raspberry Pi:", e);
-  }
-}
-
-async function refreshLogs() {
-  if (isSystemOffline) return; 
+  } catch (e) { handleOfflineState(); } 
   
-  try {
-    const res = await fetchWithTimeout('/api/logs', { timeout: 6000 }); // Diperpanjang ke 6 detik
-    const logs = await res.json();
-    
-    updateChartData(logs);
-
-    const body = document.getElementById('log-body');
-    if (!logs || !logs.length) return;
-    
-    body.innerHTML = logs.map(row => `
-      <tr>
-        <td>${new Date(row.timestamp).toLocaleTimeString('id-ID')}</td>
-        <td>${row.vehicle_count} Unit</td>
-        <td>${(row.density * 100).toFixed(0)}%</td>
-        <td>${STATE_LABELS[row.state] || row.state}</td>
-        <td>${row.phase_elapsed} Detik</td>
-      </tr>`).join('');
-  } catch (e) { 
-    console.error("Gagal memuat log:", e);
-  }
+  // Tunggu delay SETELAH proses di atas selesai, baru minta lagi
+  setTimeout(loopLatest, DELAY_LATEST);
 }
 
-// --- KAMERA & MODAL (ZOOM) ---
-function refreshFrame() {
-  if (isSystemOffline || isFrameLoading) return; 
-  isFrameLoading = true;
+// 2. Loop Frame Kamera dengan onload binding
+function loopFrame() {
+  if (isSystemOffline) {
+    setTimeout(loopFrame, 2000); // Jika mati, cek pelan-pelan
+    return;
+  }
   
   const img = document.getElementById('camera-frame');
+  
+  // Fungsi yang dipanggil saat gambar sukses dimuat
+  img.onload = function() {
+    img.style.display = 'block';
+    document.getElementById('live-badge').style.display = 'block';
+    // Jadwalkan request gambar berikutnya hanya setelah gambar ini sukses
+    setTimeout(loopFrame, DELAY_FRAME);
+  };
+  
+  // Fungsi yang dipanggil saat gambar gagal dimuat
+  img.onerror = function() {
+    img.style.display = 'none';
+    document.getElementById('live-badge').style.display = 'none';
+    // Jika gagal, coba lagi nanti agak lama
+    setTimeout(loopFrame, 3000);
+  };
+
   img.src = '/api/frame?t=' + Date.now();
 }
 
-function showCameraFeed() {
-  if (isSystemOffline) {
-    hideCameraFeed(); 
-    return;
+// 3. Loop Log (Agak Santai)
+async function loopLogs() {
+  if (!isSystemOffline) {
+    try {
+      const res = await fetchWithTimeout('/api/logs');
+      const logs = await res.json();
+      updateChartData(logs);
+      if (logs.length) {
+        document.getElementById('log-body').innerHTML = logs.map(row => `<tr><td>${new Date(row.timestamp).toLocaleTimeString('id-ID')}</td><td>${row.vehicle_count} Unit</td><td>${(row.density * 100).toFixed(0)}%</td><td>${STATE_LABELS[row.state] || row.state}</td><td>${row.phase_elapsed} Detik</td></tr>`).join('');
+      }
+    } catch (e) {}
   }
-  document.getElementById('camera-frame').style.display = 'block';
-  document.getElementById('live-badge').style.display = 'block';
-  isFrameLoading = false; 
-}
-
-function hideCameraFeed() {
-  document.getElementById('camera-frame').style.display = 'none';
-  document.getElementById('live-badge').style.display = 'none';
-  isFrameLoading = false; 
+  setTimeout(loopLogs, DELAY_LOGS);
 }
 
 // Modal Logika
-const modal = document.getElementById("img-modal");
-const camFrame = document.getElementById("camera-frame");
-const modalImg = document.getElementById("modal-img");
-const spanClose = document.getElementById("close-modal");
+const modal = document.getElementById("img-modal"), camFrame = document.getElementById("camera-frame"), modalImg = document.getElementById("modal-img"), spanClose = document.getElementById("close-modal");
+camFrame.onclick = () => { modal.style.display = "block"; modalImg.src = camFrame.src; };
+spanClose.onclick = () => { modal.style.display = "none"; };
+window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-camFrame.onclick = function(){
-  modal.style.display = "block";
-  modalImg.src = this.src;
-};
-
-spanClose.onclick = function() { 
-  modal.style.display = "none";
-};
-
-window.onclick = function(event) {
-  if (event.target == modal) {
-    modal.style.display = "none";
-  }
-};
-
-// --- JALANKAN PROGRAM UTAMA ---
+// --- JALANKAN PROGRAM ---
 async function startApp() {
   await loadConfig();
   initChart();
   
-  await refreshLatest();
-  await refreshLogs();
-  
-  // MENGURANGI BEBAN RASPBERRY PI
-  setInterval(refreshLatest, 3000); // Teks data ditarik tiap 3 detik
-  setInterval(refreshLogs, 10000);  // Tabel & Grafik ditarik tiap 10 detik
-  setInterval(refreshFrame, 4000);  // Frame kamera ditarik tiap 4 detik
+  // Mulai siklus cerdas
+  loopLatest();
+  loopFrame();
+  loopLogs();
 }
 
 startApp();
